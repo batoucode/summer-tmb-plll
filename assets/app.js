@@ -13,7 +13,7 @@
   let state = {
     category: "u1315",
     weekIndex: 0,
-    progress: {},   // key -> array<boolean> | boolean
+    progress: {},   // key -> array<boolean>
     expanded: {}    // transient: weekIndex_dayIndex -> bool (not persisted)
   };
 
@@ -53,16 +53,33 @@
     return { kind: mod.type, code: raw, module: mod, label: mod.title };
   }
 
-  function unitCount(resolved) {
-    if (resolved.kind === "exercises") return resolved.module.exercises.length;
-    if (resolved.kind === "checklist") return resolved.module.items.length;
-    if (resolved.kind === "cardio") return 1;
-    if (resolved.kind === "single") return 1;
-    return 0;
+  /* Décompose une séance en blocs indépendamment validables
+     (échauffement / exercices / séance cardio / élément unique). */
+  function getBlocks(resolved) {
+    if (resolved.kind === "rest") return [];
+    const m = resolved.module;
+    if (resolved.kind === "exercises") {
+      const blocks = [];
+      if (m.echauffement && m.echauffement.length) {
+        blocks.push({ key: "warmup", label: "Échauffement", hasValue: false, items: m.echauffement.map((t) => ({ nom: t })) });
+      }
+      blocks.push({ key: "main", label: m.echauffement ? "Exercices" : null, hasValue: true, items: m.exercises });
+      return blocks;
+    }
+    if (resolved.kind === "checklist") {
+      return [{ key: "main", label: null, hasValue: false, items: m.items }];
+    }
+    if (resolved.kind === "cardio") {
+      return [{ key: "main", label: null, hasValue: false, items: [{ nom: "Séance réalisée" }] }];
+    }
+    if (resolved.kind === "single") {
+      return [{ key: "main", label: null, hasValue: false, items: [{ nom: "Fait" }] }];
+    }
+    return [];
   }
 
-  function progressKey(weekId, dayIndex) {
-    return `w${weekId}_d${dayIndex}_${state.category}`;
+  function blockKey(weekId, dayIndex, block) {
+    return `w${weekId}_d${dayIndex}_${state.category}_${block.key}`;
   }
 
   function defiKey(weekId) {
@@ -82,19 +99,23 @@
     save();
   }
 
-  function resetKey(key, count) {
-    state.progress[key] = new Array(count).fill(false);
+  function resetKeys(keys) {
+    keys.forEach(({ key, count }) => { state.progress[key] = new Array(count).fill(false); });
     save();
   }
 
   /* ---------- Stats ---------- */
   function dayStats(week, dayIndex) {
     const resolved = resolveDay(week, dayIndex);
-    if (resolved.kind === "rest") return { total: 0, done: 0, resolved };
-    const count = unitCount(resolved);
-    const checks = getChecks(progressKey(week.id, dayIndex), count);
-    const done = checks.filter(Boolean).length;
-    return { total: count, done, resolved, checks };
+    if (resolved.kind === "rest") return { total: 0, done: 0, resolved, blocks: [] };
+    const blocks = getBlocks(resolved);
+    let total = 0, done = 0;
+    blocks.forEach((b) => {
+      const checks = getChecks(blockKey(week.id, dayIndex, b), b.items.length);
+      total += b.items.length;
+      done += checks.filter(Boolean).length;
+    });
+    return { total, done, resolved, blocks };
   }
 
   function weekStats(week) {
@@ -145,6 +166,99 @@
     </a>`;
   }
 
+  function renderBlock(block, week, dayIndex) {
+    const count = block.items.length;
+    const key = blockKey(week.id, dayIndex, block);
+    const checks = getChecks(key, count);
+    let html = "";
+    if (block.label) html += `<div class="block-label">${escapeHtml(block.label)}</div>`;
+    html += `<div class="exercise-list">`;
+    block.items.forEach((item, idx) => {
+      const checked = checks[idx];
+      const valHtml = block.hasValue ? `<span class="exercise-val">${escapeHtml(item[state.category])}</span>` : "";
+      html += `
+        <label class="exercise-row ${checked ? "checked" : ""}">
+          <input type="checkbox" data-key="${key}" data-count="${count}" data-idx="${idx}" ${checked ? "checked" : ""}>
+          <span class="exercise-name">${escapeHtml(item.nom)}${videoIcon(item.video)}</span>
+          ${valHtml}
+        </label>`;
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  /* ---------- Module info + blocks body ---------- */
+  function renderModuleBody(resolved, week, dayIndex) {
+    const m = resolved.module;
+    let html = "";
+    if (m.objectif) html += `<p class="module-objectif">${escapeHtml(m.objectif)}</p>`;
+    if (m.rpe) {
+      html += `<div class="rpe-row"><span class="rpe-label">RPE</span><span class="rpe-pill" style="--c:${CATEGORIES.find((c) => c.key === state.category).color}">${m.rpe[state.category]}</span></div>`;
+    }
+    if (m.durations) {
+      const catObj = CATEGORIES.find((c) => c.key === state.category);
+      html += `<div class="duration-chip" style="--c:${catObj.color}">${escapeHtml(m.durations[state.category])}</div>`;
+    }
+    if (m.duration) html += `<div class="duration-chip">${escapeHtml(m.duration)}</div>`;
+    if (m.options && m.options[state.category]) {
+      html += `<ul class="plain-list options-list">${m.options[state.category].map((o) => `<li>${escapeHtml(o)}</li>`).join("")}</ul>`;
+    }
+    if (m.note) html += `<p class="module-note">${escapeHtml(m.note)}</p>`;
+
+    const blocks = getBlocks(resolved);
+    blocks.forEach((b) => { html += renderBlock(b, week, dayIndex); });
+    return { html, blocks };
+  }
+
+  /* ---------- Day card ---------- */
+  function renderDayCard(week, dayIndex) {
+    const dayName = DAY_LABELS_ORDER[dayIndex];
+    const resolved = resolveDay(week, dayIndex);
+    const stats = dayStats(week, dayIndex);
+    const isToday = dayIndex === todayDayIndex();
+    const expandKey = `${week.id}_${dayIndex}`;
+    const isRest = resolved.kind === "rest";
+    const isDone = !isRest && stats.total > 0 && stats.done === stats.total;
+
+    const card = el("div", "day-card" + (isRest ? " rest" : "") + (isDone ? " done" : "") + (isToday ? " today" : ""));
+
+    let statusHtml;
+    if (isRest) statusHtml = `<span class="status-pill rest">Repos</span>`;
+    else if (isDone) statusHtml = `<span class="status-pill done">✓ Fait</span>`;
+    else if (stats.done > 0) statusHtml = `<span class="status-pill partial">${stats.done}/${stats.total}</span>`;
+    else statusHtml = `<span class="status-pill todo">À faire</span>`;
+
+    const header = el("div", "day-header");
+    header.innerHTML = `
+      <div class="day-header-left">
+        <span class="day-name">${dayName}${isToday ? '<span class="today-badge">Aujourd\'hui</span>' : ""}</span>
+        <span class="day-session">${escapeHtml(resolved.label)}</span>
+      </div>
+      <div class="day-header-right">
+        ${statusHtml}
+        ${!isRest ? '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>' : ""}
+      </div>
+    `;
+    card.appendChild(header);
+
+    if (!isRest) {
+      const body = el("div", "day-body" + (state.expanded[expandKey] ? " open" : ""));
+      const { html, blocks } = renderModuleBody(resolved, week, dayIndex);
+      body.innerHTML = html;
+      const resetKeysJson = JSON.stringify(blocks.map((b) => ({ key: blockKey(week.id, dayIndex, b), count: b.items.length })));
+      body.innerHTML += `<button class="btn-reset-day" data-reset-keys='${resetKeysJson}'>Réinitialiser ce jour</button>`;
+      card.appendChild(body);
+
+      header.addEventListener("click", () => {
+        state.expanded[expandKey] = !state.expanded[expandKey];
+        body.classList.toggle("open");
+        header.querySelector(".chev")?.classList.toggle("rot");
+      });
+    }
+
+    return card;
+  }
+
   /* ---------- Category selector ---------- */
   function renderCategorySelector() {
     const container = document.getElementById("categorySelector");
@@ -181,7 +295,7 @@
     const pct = stats.pct;
     ring.style.setProperty("--pct", pct);
     document.getElementById("overviewPct").textContent = pct + "%";
-    document.getElementById("overviewSub").textContent = `${stats.done} / ${stats.total} séances validées`;
+    document.getElementById("overviewSub").textContent = `${stats.done} / ${stats.total} éléments validés`;
 
     const dots = document.getElementById("overviewWeeks");
     dots.innerHTML = "";
@@ -225,139 +339,6 @@
       btn.addEventListener("click", () => { state.weekIndex = i; save(); renderAll(); });
       tabs.appendChild(btn);
     });
-  }
-
-  /* ---------- Module body renderers ---------- */
-  function renderExercisesBody(module, week, dayIndex) {
-    const count = module.exercises.length;
-    const key = progressKey(week.id, dayIndex);
-    const checks = getChecks(key, count);
-    let html = "";
-    if (module.objectif) html += `<p class="module-objectif">${escapeHtml(module.objectif)}</p>`;
-    if (module.rpe) {
-      html += `<div class="rpe-row"><span class="rpe-label">RPE</span><span class="rpe-pill" style="--c:${CATEGORIES.find(c=>c.key===state.category).color}">${module.rpe[state.category]}</span></div>`;
-    }
-    if (module.echauffement) {
-      html += `<details class="collapse"><summary>Échauffement</summary><ul class="plain-list">${module.echauffement.map(e => `<li>${escapeHtml(e)}</li>`).join("")}</ul></details>`;
-    }
-    if (module.note) html += `<p class="module-note">${escapeHtml(module.note)}</p>`;
-
-    html += `<div class="exercise-list">`;
-    module.exercises.forEach((exo, idx) => {
-      const val = exo[state.category];
-      const checked = checks[idx];
-      html += `
-        <label class="exercise-row ${checked ? "checked" : ""}">
-          <input type="checkbox" data-key="${key}" data-count="${count}" data-idx="${idx}" ${checked ? "checked" : ""}>
-          <span class="exercise-name">${escapeHtml(exo.nom)}${videoIcon(exo.video)}</span>
-          <span class="exercise-val">${escapeHtml(val)}</span>
-        </label>`;
-    });
-    html += `</div>`;
-    return html;
-  }
-
-  function renderChecklistBody(module, week, dayIndex) {
-    const count = module.items.length;
-    const key = progressKey(week.id, dayIndex);
-    const checks = getChecks(key, count);
-    let html = "";
-    if (module.objectif) html += `<p class="module-objectif">${escapeHtml(module.objectif)}</p>`;
-    if (module.duration) html += `<div class="duration-chip">${escapeHtml(module.duration)}</div>`;
-    html += `<div class="exercise-list">`;
-    module.items.forEach((item, idx) => {
-      const checked = checks[idx];
-      html += `
-        <label class="exercise-row ${checked ? "checked" : ""}">
-          <input type="checkbox" data-key="${key}" data-count="${count}" data-idx="${idx}" ${checked ? "checked" : ""}>
-          <span class="exercise-name">${escapeHtml(item.nom)}${videoIcon(item.video)}</span>
-        </label>`;
-    });
-    html += `</div>`;
-    return html;
-  }
-
-  function renderCardioBody(module, week, dayIndex) {
-    const key = progressKey(week.id, dayIndex);
-    const checks = getChecks(key, 1);
-    const checked = checks[0];
-    let html = "";
-    if (module.objectif) html += `<p class="module-objectif">${escapeHtml(module.objectif)}</p>`;
-    if (module.durations) {
-      const catObj = CATEGORIES.find(c => c.key === state.category);
-      html += `<div class="duration-chip" style="--c:${catObj.color}">${escapeHtml(module.durations[state.category])}</div>`;
-    }
-    if (module.options && module.options[state.category]) {
-      html += `<ul class="plain-list options-list">${module.options[state.category].map(o => `<li>${escapeHtml(o)}</li>`).join("")}</ul>`;
-    }
-    if (module.note) html += `<p class="module-note">${escapeHtml(module.note)}</p>`;
-    html += `
-      <label class="exercise-row single ${checked ? "checked" : ""}">
-        <input type="checkbox" data-key="${key}" data-count="1" data-idx="0" ${checked ? "checked" : ""}>
-        <span class="exercise-name">Séance réalisée</span>
-      </label>`;
-    return html;
-  }
-
-  function renderSingleBody(resolved, week, dayIndex) {
-    const key = progressKey(week.id, dayIndex);
-    const checks = getChecks(key, 1);
-    const checked = checks[0];
-    return `
-      <label class="exercise-row single ${checked ? "checked" : ""}">
-        <input type="checkbox" data-key="${key}" data-count="1" data-idx="0" ${checked ? "checked" : ""}>
-        <span class="exercise-name">Fait</span>
-      </label>`;
-  }
-
-  /* ---------- Day card ---------- */
-  function renderDayCard(week, dayIndex) {
-    const dayName = DAY_LABELS_ORDER[dayIndex];
-    const resolved = resolveDay(week, dayIndex);
-    const stats = dayStats(week, dayIndex);
-    const isToday = dayIndex === todayDayIndex();
-    const expandKey = `${week.id}_${dayIndex}`;
-    const isRest = resolved.kind === "rest";
-    const isDone = !isRest && stats.total > 0 && stats.done === stats.total;
-
-    const card = el("div", "day-card" + (isRest ? " rest" : "") + (isDone ? " done" : "") + (isToday ? " today" : ""));
-
-    let statusHtml;
-    if (isRest) statusHtml = `<span class="status-pill rest">Repos</span>`;
-    else if (isDone) statusHtml = `<span class="status-pill done">✓ Fait</span>`;
-    else if (stats.done > 0) statusHtml = `<span class="status-pill partial">${stats.done}/${stats.total}</span>`;
-    else statusHtml = `<span class="status-pill todo">À faire</span>`;
-
-    const header = el("div", "day-header");
-    header.innerHTML = `
-      <div class="day-header-left">
-        <span class="day-name">${dayName}${isToday ? '<span class="today-badge">Aujourd\'hui</span>' : ""}</span>
-        <span class="day-session">${escapeHtml(resolved.label)}</span>
-      </div>
-      <div class="day-header-right">
-        ${statusHtml}
-        ${!isRest ? '<svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>' : ""}
-      </div>
-    `;
-    card.appendChild(header);
-
-    if (!isRest) {
-      const body = el("div", "day-body" + (state.expanded[expandKey] ? " open" : ""));
-      if (resolved.kind === "exercises") body.innerHTML = renderExercisesBody(resolved.module, week, dayIndex);
-      else if (resolved.kind === "checklist") body.innerHTML = renderChecklistBody(resolved.module, week, dayIndex);
-      else if (resolved.kind === "cardio") body.innerHTML = renderCardioBody(resolved.module, week, dayIndex);
-      else if (resolved.kind === "single") body.innerHTML = renderSingleBody(resolved, week, dayIndex);
-      body.innerHTML += `<button class="btn-reset-day" data-reset-key="${progressKey(week.id, dayIndex)}" data-reset-count="${unitCount(resolved)}">Réinitialiser ce jour</button>`;
-      card.appendChild(body);
-
-      header.addEventListener("click", () => {
-        state.expanded[expandKey] = !state.expanded[expandKey];
-        body.classList.toggle("open");
-        header.querySelector(".chev")?.classList.toggle("rot");
-      });
-    }
-
-    return card;
   }
 
   /* ---------- Week content ---------- */
@@ -409,7 +390,7 @@
     document.getElementById("chevalierQuoteTop").textContent = `« ${CHEVALIER_QUOTE} »`;
 
     const rules = document.getElementById("goldenRules");
-    rules.innerHTML = GOLDEN_RULES.map(r => `<div class="rule-chip">✅ ${escapeHtml(r)}</div>`).join("");
+    rules.innerHTML = GOLDEN_RULES.map((r) => `<div class="rule-chip">✅ ${escapeHtml(r)}</div>`).join("");
 
     const outro = document.getElementById("outroCard");
     outro.innerHTML = `
@@ -433,10 +414,11 @@
     });
 
     document.addEventListener("click", (e) => {
-      const resetBtn = e.target.closest("[data-reset-key]");
+      const resetBtn = e.target.closest("[data-reset-keys]");
       if (resetBtn) {
         e.stopPropagation();
-        resetKey(resetBtn.dataset.resetKey, parseInt(resetBtn.dataset.resetCount, 10));
+        const keys = JSON.parse(resetBtn.dataset.resetKeys);
+        resetKeys(keys);
         renderAll();
       }
     });
