@@ -23,7 +23,12 @@
       <div class="name">Summer Book</div>
       <div class="sub">TMB · 2026-2027</div>
     </div>
-    <button class="icon-btn" id="topbarHelpBtn" aria-label="Aide">?</button>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="topbarAccountBtn" aria-label="Mon compte">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+      </button>
+      <button class="icon-btn" id="topbarHelpBtn" aria-label="Aide">?</button>
+    </div>
   </div>
 
   <div id="pageContainer"></div>
@@ -32,6 +37,9 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-config.js"></script>
+<script src="assets/cloud.js"></script>
 <script src="assets/data.js"></script>
 <script src="assets/app.js"></script>
 </body>

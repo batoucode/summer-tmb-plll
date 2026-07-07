@@ -67,6 +67,16 @@
       theme: state.theme,
       progress: state.progress
     }));
+    scheduleCloudSync();
+  }
+
+  let cloudSyncTimer = null;
+  function scheduleCloudSync() {
+    if (typeof TMBCloud === "undefined" || !TMBCloud.getSession()) return;
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = setTimeout(() => {
+      TMBCloud.saveState(state.category, state.weekIndex, state.theme, state.progress).catch(() => {});
+    }, 800);
   }
   function applyTheme() {
     document.documentElement.setAttribute("data-theme", state.theme);
@@ -181,6 +191,7 @@
       case "documents": renderDocuments(container); break;
       case "aide": renderAide(container); break;
       case "progression": renderProgression(container); break;
+      case "compte": renderCompte(container); break;
       default: renderHome(container); break;
     }
     renderBottomNav(route.name);
@@ -196,7 +207,7 @@
     ];
     const activeRoute = ["jour", "exercice"].includes(routeName) ? "programme"
       : routeName === "bibliotheque" ? "programme"
-      : routeName === "aide" ? "" : routeName;
+      : ["aide", "compte"].includes(routeName) ? "" : routeName;
     const nav = document.getElementById("bottomNav");
     nav.innerHTML = navMap.map((n) => `
       <button class="nav-tab ${activeRoute === n.route ? "active" : ""}" data-nav="${n.route}">
@@ -756,6 +767,94 @@
     });
   }
 
+  /* ---------- Page: Mon compte (synchro cloud) ---------- */
+  function renderCompte(container) {
+    const hasCloud = typeof TMBCloud !== "undefined" && TMBCloud.available();
+    const session = hasCloud ? TMBCloud.getSession() : null;
+
+    container.innerHTML = `
+      <div class="page">
+        <div class="page-eyebrow">Mon compte</div>
+        <div class="page-title">${session ? "Connecté" : "Se connecter"}</div>
+        <p class="page-lead">Connecte-toi pour retrouver ta progression sur n'importe quel appareil (téléphone, tablette...). Si l'identifiant n'existe pas encore, il est créé automatiquement.</p>
+        <div id="compteBody"></div>
+      </div>
+    `;
+    const body = container.querySelector("#compteBody");
+
+    if (!hasCloud) {
+      body.innerHTML = `<div class="info-card"><p class="module-objectif">La synchronisation en ligne n'est pas disponible pour le moment. Ta progression reste sauvegardée sur cet appareil.</p></div>`;
+      return;
+    }
+
+    if (session) {
+      body.innerHTML = `
+        <div class="info-card" style="text-align:center">
+          <span class="sync-badge">${icon("check", 14)} Synchronisé</span>
+          <p class="module-objectif" style="margin-top:10px">Connecté en tant que <strong>${escapeHtml(session.username)}</strong>.</p>
+          <button class="btn-validate" id="logoutBtn" style="background:var(--red)">Se déconnecter</button>
+        </div>`;
+      body.querySelector("#logoutBtn").addEventListener("click", () => {
+        TMBCloud.clearSession();
+        render();
+      });
+      return;
+    }
+
+    body.innerHTML = `
+      <div class="info-card">
+        <div class="form-field">
+          <label>Identifiant</label>
+          <input type="text" id="loginUser" placeholder="ex: Lucas.T" autocomplete="off" autocapitalize="off">
+        </div>
+        <div class="form-field">
+          <label>Mot de passe</label>
+          <input type="text" id="loginPass" placeholder="ex: basket26" autocomplete="off" autocapitalize="off">
+        </div>
+        <div class="form-error" id="loginError"></div>
+        <button class="btn-validate" id="loginBtn">Se connecter</button>
+      </div>`;
+
+    const userInput = body.querySelector("#loginUser");
+    const passInput = body.querySelector("#loginPass");
+    const errEl = body.querySelector("#loginError");
+    const btn = body.querySelector("#loginBtn");
+
+    async function doLogin() {
+      const u = userInput.value.trim();
+      const p = passInput.value;
+      errEl.textContent = "";
+      if (!u || p.length < 3) {
+        errEl.textContent = "Identifiant requis, mot de passe : 3 caractères minimum.";
+        return;
+      }
+      btn.textContent = "Connexion…";
+      btn.disabled = true;
+      try {
+        const remote = await TMBCloud.login(u, p);
+        if (remote) {
+          state.category = remote.category || state.category;
+          state.weekIndex = typeof remote.week_index === "number" ? remote.week_index : state.weekIndex;
+          state.theme = remote.theme === "dark" ? "dark" : "light";
+          state.progress = remote.progress || {};
+          save();
+          applyTheme();
+        }
+        render();
+      } catch (e) {
+        const msg = String((e && e.message) || "");
+        errEl.textContent = msg.includes("INVALID_PASSWORD") ? "Mot de passe incorrect."
+          : msg.includes("INVALID_INPUT") ? "Identifiant ou mot de passe invalide."
+          : "Connexion impossible. Réessaie plus tard.";
+        btn.textContent = "Se connecter";
+        btn.disabled = false;
+      }
+    }
+
+    btn.addEventListener("click", doLogin);
+    [userInput, passInput].forEach((el) => el.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); }));
+  }
+
   /* ---------- Checkbox delegation (défi, etc.) ---------- */
   function bindCheckboxes(scope) {
     scope.querySelectorAll('input[type="checkbox"][data-key]').forEach((cb) => {
@@ -773,7 +872,28 @@
     document.getElementById("topbarCrest").addEventListener("click", () => navigate("/"));
     document.getElementById("topbarBrand").addEventListener("click", () => navigate("/"));
     document.getElementById("topbarHelpBtn").addEventListener("click", () => navigate("/aide"));
+    document.getElementById("topbarAccountBtn").addEventListener("click", () => navigate("/compte"));
     window.addEventListener("hashchange", render);
     render();
+
+    // Restaure l'état depuis le cloud en arrière-plan si une session existe
+    // (l'app a déjà rendu la version locale/en cache, donc pas d'attente).
+    if (typeof TMBCloud !== "undefined" && TMBCloud.available()) {
+      const session = TMBCloud.getSession();
+      if (session) {
+        TMBCloud.login(session.username, session.password).then((remote) => {
+          if (!remote) return;
+          state.category = remote.category || state.category;
+          state.weekIndex = typeof remote.week_index === "number" ? remote.week_index : state.weekIndex;
+          state.theme = remote.theme === "dark" ? "dark" : "light";
+          state.progress = remote.progress || {};
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            category: state.category, weekIndex: state.weekIndex, theme: state.theme, progress: state.progress
+          }));
+          applyTheme();
+          render();
+        }).catch(() => { /* session invalide ou hors-ligne : on garde la version locale */ });
+      }
+    }
   });
 })();
