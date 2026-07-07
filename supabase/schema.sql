@@ -30,7 +30,7 @@ create or replace function public.tmb_login_or_signup(p_username text, p_passwor
 returns table (category text, week_index int, theme text, progress jsonb)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_row public.tmb_players%rowtype;
@@ -63,7 +63,7 @@ create or replace function public.tmb_save_state(
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_row public.tmb_players%rowtype;
