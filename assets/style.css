@@ -60,7 +60,7 @@
   --defi-text: #8f1414;
   --ink: #7a1414;
   --ink-2: #4a0d0d;
-  --surface-translucent: rgba(165, 29, 29, 0.9);
+  --surface-translucent: rgba(255, 255, 255, 0.92);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.15);
   --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.3);
@@ -72,12 +72,9 @@
     var(--bg);
 }
 
-:root[data-theme="dark"] .topbar .brand .name,
-:root[data-theme="dark"] .topbar .sub,
 :root[data-theme="dark"] .page-title {
   color: #fff;
 }
-:root[data-theme="dark"] .topbar .sub { color: rgba(255,255,255,0.75); }
 :root[data-theme="dark"] .page-eyebrow { color: #ffd7d7; }
 :root[data-theme="dark"] .section-title { color: rgba(255,255,255,0.7); }
 :root[data-theme="dark"] .page-lead { color: rgba(255,255,255,0.85); }
