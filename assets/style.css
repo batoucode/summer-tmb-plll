@@ -117,13 +117,13 @@ a { color: var(--blue); }
   border-bottom: 1px solid var(--border);
 }
 .topbar .crest {
-  width: 40px; height: 40px;
-  border-radius: 11px;
+  width: 80px; height: 80px;
+  border-radius: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  padding: 4px;
+  padding: 6px;
   cursor: pointer;
 }
 .topbar .crest img { width: 100%; height: 100%; object-fit: contain; }
