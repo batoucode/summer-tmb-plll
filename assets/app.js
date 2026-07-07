@@ -266,9 +266,9 @@
         </div>
 
         <div class="theme-toggle-row">
-          <span class="ttl">${icon(state.theme === "dark" ? "moon" : "sun", 18)} Thème ${state.theme === "dark" ? "sombre" : "clair"}</span>
+          <span class="ttl">${icon(state.theme === "dark" ? "basketball" : "sun", 18)} Thème ${state.theme === "dark" ? "rouge" : "clair"}</span>
           <span class="theme-switch ${state.theme === "dark" ? "on" : ""}" id="themeSwitch">
-            <span class="knob">${icon(state.theme === "dark" ? "moon" : "sun", 13)}</span>
+            <span class="knob">${icon(state.theme === "dark" ? "basketball" : "sun", 13)}</span>
           </span>
         </div>
 
