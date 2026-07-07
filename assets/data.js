@@ -567,3 +567,93 @@ const OUTRO = {
 };
 
 const CHEVALIER_QUOTE = "Le chevalier ne devient pas plus fort au combat. Il devient plus fort pendant sa préparation.";
+
+const PDF_PATH = "ressources/Summer book TMB 2K26_2K27 - Summer book TMB 2K262K27.pdf";
+
+/* ============================================================
+   BIBLIOTHÈQUE D'EXERCICES — fiche + conseil technique par exercice
+   ============================================================ */
+const FAMILIES = {
+  legs: { label: "Bas du corps", icon: "legs" },
+  upper: { label: "Haut du corps", icon: "upper" },
+  core: { label: "Gainage", icon: "core" },
+  speed: { label: "Vitesse / Puissance", icon: "speed" },
+  mobility: { label: "Mobilité", icon: "mobility" }
+};
+
+/* Ordre important : entrées les plus spécifiques en premier
+   (ex. "bulgarian" avant "split squat") pour éviter les faux positifs. */
+const EXERCISE_LIBRARY = [
+  { key: "Bulgarian Split Squat", match: ["bulgarian"], family: "legs",
+    desc: "Pied arrière surélevé sur un banc. Descends en gardant le buste droit, pousse sur la jambe avant pour remonter." },
+  { key: "Goblet Squat", match: ["goblet"], family: "legs",
+    desc: "Tiens une charge contre la poitrine, descends en poussant les hanches en arrière, genoux alignés avec les pieds." },
+  { key: "Back Squat", match: ["back squat"], family: "legs",
+    desc: "Barre sur le haut du dos, pieds largeur d'épaules. Descends en contrôlant, garde le dos neutre et remonte en poussant dans le sol." },
+  { key: "Split Squat", match: ["split squat"], family: "legs",
+    desc: "Un pied devant, un pied derrière. Descends à la verticale sans que le genou avant dépasse la pointe de pied." },
+  { key: "Squat Jump", match: ["squat jump"], family: "speed",
+    desc: "Descends en squat puis saute le plus haut possible en tendant tout le corps. Réceptionne-toi en souplesse." },
+  { key: "Hip Thrust", match: ["hip thrust"], family: "legs",
+    desc: "Dos appuyé sur un banc, pousse les hanches vers le haut en contractant les fessiers. Évite de cambrer le bas du dos." },
+  { key: "Nordic", match: ["nordic"], family: "legs",
+    desc: "À genoux, chevilles bloquées. Résiste le plus longtemps possible en descendant lentement vers l'avant." },
+  { key: "Mollets", match: ["mollet"], family: "legs",
+    desc: "Monte sur la pointe des pieds, marque un temps d'arrêt en haut, puis redescends en contrôlant." },
+  { key: "Gainage", match: ["gainage"], family: "core",
+    desc: "Position de planche, corps aligné de la tête aux talons, abdos gainés. Ne laisse pas le bassin tomber." },
+  { key: "Pompes", match: ["pompe"], family: "upper",
+    desc: "Mains largeur d'épaules, corps gainé. Descends jusqu'à effleurer le sol puis pousse pour remonter." },
+  { key: "Rowing", match: ["rowing"], family: "upper",
+    desc: "Tire la charge vers le buste en resserrant les omoplates. Garde le dos droit et les coudes proches du corps." },
+  { key: "Développé", match: ["développé", "developpe"], family: "upper",
+    desc: "Pousse la charge devant ou au-dessus de la poitrine, sans bloquer les coudes en fin de mouvement." },
+  { key: "Tractions/Tirage", match: ["tractions"], family: "upper",
+    desc: "Tire le corps ou la charge vers toi en resserrant les omoplates. Garde le buste gainé, évite de te balancer." },
+  { key: "Tirage", match: ["tirage"], family: "upper",
+    desc: "Tire la barre ou la poignée vers toi en gardant le buste droit, resserre les omoplates en fin de mouvement." },
+  { key: "Pallof Press", match: ["pallof"], family: "core",
+    desc: "Élastique ou poulie sur le côté, pousse devant toi sans laisser le buste pivoter. Le gainage résiste à la rotation." },
+  { key: "Planche latérale", match: ["planche latérale", "planche laterale"], family: "core",
+    desc: "Sur le côté, appui sur l'avant-bras, corps aligné. Garde les hanches hautes sans t'affaisser." },
+  { key: "Sprint", match: ["sprint"], family: "speed",
+    desc: "Accélération maximale sur la distance indiquée. Récupération complète entre chaque répétition pour rester explosif." },
+  { key: "Changements de direction", match: ["changement"], family: "speed",
+    desc: "Décélère, change d'appui et raccélère dans l'autre direction le plus vite possible, sans perdre l'équilibre." },
+  { key: "Bondissements", match: ["bondissement"], family: "speed",
+    desc: "Enchaîne des sauts vers l'avant en cherchant la distance à chaque appui, sans temps d'arrêt." },
+  { key: "Sauts horizontaux", match: ["sauts horizontaux", "sauts horizontaux explosifs"], family: "speed",
+    desc: "Élan bras + jambes, saute le plus loin possible et réceptionne-toi en équilibre, genoux fléchis." },
+  { key: "Sauts latéraux", match: ["sauts latéraux", "sauts lateraux"], family: "speed",
+    desc: "Saute latéralement d'un appui à l'autre en contrôlant la réception à chaque fois." },
+  { key: "Lancer médecine ball", match: ["médecine ball", "medecine ball"], family: "speed",
+    desc: "Lance le ballon lesté avec l'ensemble du corps (jambes-hanches-bras), le plus loin ou le plus fort possible." },
+  { key: "Mobilité chevilles", match: ["mobilité chevilles"], family: "mobility",
+    desc: "Mobilise l'articulation de la cheville dans toutes les directions pour préparer les appuis." },
+  { key: "Mobilité hanches", match: ["mobilité hanches", "ouverture des hanches", "ouverture de hanches"], family: "mobility",
+    desc: "Grands cercles de hanches et ouvertures dynamiques pour préparer les changements de direction." },
+  { key: "Rotation thoracique", match: ["rotation thoracique"], family: "mobility",
+    desc: "À quatre pattes ou debout, tourne le haut du dos en gardant les hanches fixes." },
+  { key: "Étirement des fléchisseurs de hanche", match: ["fléchisseurs de hanche", "flechisseurs de hanche"], family: "mobility",
+    desc: "Fente avant, bascule légèrement le bassin pour étirer l'avant de la hanche arrière." },
+  { key: "Ischios", match: ["ischio"], family: "mobility",
+    desc: "Étirement des ischio-jambiers, jambe tendue, dos droit, sans forcer sur une douleur." },
+  { key: "Copenhagen léger", match: ["copenhagen"], family: "core",
+    desc: "Gainage latéral avec le pied surélevé sur un banc : travaille la face interne de la cuisse." },
+  { key: "Tibialis Raise", match: ["tibialis"], family: "mobility",
+    desc: "Dos au mur, remonte la pointe des pieds vers le tibia pour renforcer l'avant de la jambe." },
+  { key: "Équilibre unipodal", match: ["unipodal"], family: "mobility",
+    desc: "Tiens en équilibre sur une jambe, genou légèrement fléchi, gainage actif. Fais les deux côtés." }
+];
+
+function normalizeText(s) {
+  return String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function getExerciseInfo(nom) {
+  const n = normalizeText(nom);
+  for (const entry of EXERCISE_LIBRARY) {
+    if (entry.match.some((m) => n.includes(normalizeText(m)))) return entry;
+  }
+  return null;
+}
