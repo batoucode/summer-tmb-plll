@@ -275,7 +275,7 @@
         <div class="descodes-footer">
           <a href="https://descodes.com" target="_blank" rel="noopener">
             <span>Site réalisé par</span><span class="code-icon">&lt;/&gt;</span>
-            <span class="brand-des">DES</span><span class="brand-codes">CODES</span>
+            <span class="brand-name"><span class="brand-des">DES</span><span class="brand-codes">CODES</span></span>
           </a>
         </div>
       </div>
