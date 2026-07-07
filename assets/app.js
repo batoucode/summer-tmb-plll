@@ -31,7 +31,8 @@
     trophy: '<path d="M8 4.5h8v5a4 4 0 0 1-8 0v-5Z"/><path d="M8 6H5.5a2 2 0 0 0-2 2c0 2 1.5 3.5 4 3.5M16 6h2.5a2 2 0 0 1 2 2c0 2-1.5 3.5-4 3.5"/><path d="M12 13.5V17M9 20.5h6M9.5 20.5V18h5v2.5"/>',
     basketball: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.5 5.5c2.5 2.2 3.8 4.3 3.8 6.5s-1.3 4.3-3.8 6.5M18.5 5.5c-2.5 2.2-3.8 4.3-3.8 6.5s1.3 4.3 3.8 6.5"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
-    reset: '<path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 17v-4h4"/>'
+    reset: '<path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 17v-4h4"/>',
+    sun: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2.5 12H5M19 12h2.5M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>'
   };
   function icon(name, size) {
     size = size || 20;
@@ -43,6 +44,7 @@
   let state = {
     category: "u1315",
     weekIndex: 0,
+    theme: "light",
     progress: {}
   };
 
@@ -53,6 +55,7 @@
         const parsed = JSON.parse(raw);
         state.category = parsed.category || "u1315";
         state.weekIndex = typeof parsed.weekIndex === "number" ? parsed.weekIndex : 0;
+        state.theme = parsed.theme === "dark" ? "dark" : "light";
         state.progress = parsed.progress || {};
       }
     } catch (e) { /* ignore corrupt storage */ }
@@ -61,8 +64,12 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       category: state.category,
       weekIndex: state.weekIndex,
+      theme: state.theme,
       progress: state.progress
     }));
+  }
+  function applyTheme() {
+    document.documentElement.setAttribute("data-theme", state.theme);
   }
 
   /* ---------- Schedule / blocks (identique à la logique précédente) ---------- */
@@ -258,6 +265,13 @@
           <p class="chevalier-quote">« ${escapeHtml(CHEVALIER_QUOTE)} »</p>
         </div>
 
+        <div class="theme-toggle-row">
+          <span class="ttl">${icon(state.theme === "dark" ? "moon" : "sun", 18)} Thème ${state.theme === "dark" ? "sombre" : "clair"}</span>
+          <span class="theme-switch ${state.theme === "dark" ? "on" : ""}" id="themeSwitch">
+            <span class="knob">${icon(state.theme === "dark" ? "moon" : "sun", 13)}</span>
+          </span>
+        </div>
+
         <div class="descodes-footer">
           <a href="https://descodes.com" target="_blank" rel="noopener">
             <span>Site réalisé par</span><span class="code-icon">&lt;/&gt;</span>
@@ -268,6 +282,12 @@
     `;
     renderCategorySelector(container.querySelector("#categorySelector"));
     container.querySelectorAll("[data-nav]").forEach((btn) => btn.addEventListener("click", () => navigate(btn.dataset.nav)));
+    container.querySelector("#themeSwitch").addEventListener("click", () => {
+      state.theme = state.theme === "dark" ? "light" : "dark";
+      save();
+      applyTheme();
+      render();
+    });
   }
 
   function renderCategorySelector(mount) {
@@ -749,6 +769,7 @@
   /* ---------- Init ---------- */
   document.addEventListener("DOMContentLoaded", () => {
     load();
+    applyTheme();
     document.getElementById("topbarCrest").addEventListener("click", () => navigate("/"));
     document.getElementById("topbarBrand").addEventListener("click", () => navigate("/"));
     document.getElementById("topbarHelpBtn").addEventListener("click", () => navigate("/aide"));

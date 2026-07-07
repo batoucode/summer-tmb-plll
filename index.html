@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
 <title>TMB — Summer Book 2026-2027</title>
 <meta name="description" content="Suivi de la préparation physique estivale du TMB — saison 2026-2027.">
+<script>
+  try {
+    var raw = localStorage.getItem("tmb_summerbook_v2");
+    var theme = raw && JSON.parse(raw).theme === "dark" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", theme);
+  } catch (e) {}
+</script>
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
