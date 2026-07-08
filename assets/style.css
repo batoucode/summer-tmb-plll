@@ -4,6 +4,10 @@
    ============================================================ */
 
 :root {
+  --tmb-red: #c8102e;
+  --tmb-red-dark: #7a0a1c;
+  --tmb-red-light: #ff4d5e;
+
   --blue: #2563eb;
   --blue-dark: #1d4ed8;
   --green: #16a34a;
@@ -40,7 +44,7 @@ body {
 }
 button, input, select, textarea { font-family: inherit; font-size: 1rem; }
 h1, h2, h3, p { margin: 0; }
-a { color: var(--blue); }
+a { color: var(--tmb-red); }
 
 .hidden { display: none !important; }
 
@@ -49,19 +53,21 @@ a { color: var(--blue); }
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px;
-  padding: 16px var(--pad);
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--pad) 12px;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 3px solid var(--tmb-red);
 }
-.topbar-brand { display: flex; align-items: center; gap: 12px; }
-.topbar-ball { font-size: 28px; }
-.topbar-titles .name { font-weight: 800; font-size: 1.05rem; }
+.topbar-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.topbar-ball { display: flex; align-items: center; flex-shrink: 0; }
+.topbar-logo-img { height: 32px; width: auto; object-fit: contain; }
+.topbar-titles { min-width: 0; }
+.topbar-titles .name { font-weight: 800; font-size: 1.05rem; color: var(--tmb-red); }
 .topbar-titles .sub { font-size: 0.8rem; color: var(--text-faint); }
 .topbar-user { display: flex; align-items: center; gap: 12px; }
 .user-name { font-weight: 600; }
 .role-badge {
   padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
-  background: var(--blue); color: #fff;
+  background: var(--tmb-red); color: #fff;
 }
 .role-badge.role-admin { background: var(--orange); }
 .role-badge.role-coach { background: var(--blue); }
@@ -78,8 +84,8 @@ a { color: var(--blue); }
   cursor: pointer;
   transition: transform 0.08s ease, opacity 0.15s ease;
 }
-.btn-primary { background: var(--blue); color: #fff; }
-.btn-primary:hover { background: var(--blue-dark); }
+.btn-primary { background: var(--tmb-red); color: #fff; }
+.btn-primary:hover { background: var(--tmb-red-dark); }
 .btn-primary:active { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.6; cursor: default; }
 .btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); }
@@ -95,7 +101,7 @@ a { color: var(--blue); }
 /* ---------- Layout ---------- */
 #appRoot { max-width: 980px; margin: 0 auto; padding: 0 var(--pad) 64px; }
 .page { padding-top: 28px; display: flex; flex-direction: column; gap: 20px; }
-.page-eyebrow { font-size: 0.85rem; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.04em; }
+.page-eyebrow { font-size: 0.85rem; font-weight: 700; color: var(--tmb-red); text-transform: uppercase; letter-spacing: 0.04em; }
 .page-title { font-size: 1.6rem; font-weight: 800; }
 .section-title { font-size: 1.05rem; font-weight: 800; margin-top: 8px; }
 
@@ -120,17 +126,12 @@ a { color: var(--blue); }
 }
 .field textarea { min-height: 64px; resize: vertical; }
 .field input:focus, .field select:focus, .field textarea:focus {
-  outline: none; border-color: var(--blue); background: #fff;
+  outline: none; border-color: var(--tmb-red); background: #fff;
 }
 .field-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .form-error { color: var(--red); font-size: 0.9rem; min-height: 1.2em; }
 
 /* ---------- Auth (page de connexion / inscription — thème rouge TMB) ---------- */
-:root {
-  --tmb-red: #c8102e;
-  --tmb-red-dark: #7a0a1c;
-  --tmb-red-light: #ff4d5e;
-}
 .auth-wrap {
   min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--pad);
   background:
@@ -169,7 +170,7 @@ a { color: var(--blue); }
   min-height: 44px; padding: 10px 18px; border-radius: 999px; border: 1.5px solid var(--border);
   background: var(--surface); color: var(--text-dim); font-weight: 700; cursor: pointer;
 }
-.tab.active { background: var(--text); color: #fff; border-color: var(--text); }
+.tab.active { background: var(--tmb-red); color: #fff; border-color: var(--tmb-red); }
 
 /* ---------- Admin: users table ---------- */
 .admin-actions { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -269,9 +270,47 @@ a { color: var(--blue); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 640px) {
-  :root { --pad: 16px; }
-  .topbar { padding: 12px var(--pad); flex-wrap: wrap; }
+  :root { --pad: 14px; --radius: 14px; }
+  body { font-size: 15px; }
+
+  .topbar {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) var(--pad) 10px;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .topbar-titles .sub { display: none; }
+  .topbar-user { width: 100%; justify-content: space-between; }
+  .topbar-logo-img { height: 26px; }
+
   .auth-card { padding: 28px 20px; }
   .progress-card { flex-direction: column; align-items: flex-start; }
   .field-row { flex-direction: column; }
+
+  .page-title { font-size: 1.35rem; }
+  #appRoot { padding: 0 var(--pad) 48px; }
+
+  /* Onglets et sélecteurs de semaine/jour : défilement horizontal plutôt
+     que retour à la ligne, pour rester utilisables au pouce sur petit écran. */
+  .tabs, .week-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar, .week-tabs::-webkit-scrollbar { display: none; }
+  .tabs .tab, .week-tabs .week-tab { flex-shrink: 0; }
+
+  .editor-toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .admin-actions { flex-direction: column; align-items: stretch; }
+  .admin-actions .btn-primary, .admin-actions .btn-secondary { width: 100%; }
+
+  .exo-edit-grid, .player-exo-grid { grid-template-columns: 1fr; }
+
+  .day-card { padding: 14px 16px; }
+}
+
+@media (max-width: 400px) {
+  .auth-card { padding: 24px 16px; }
+  .auth-logo-img { height: 44px; }
+  .auth-card h1 { font-size: 1.3rem; }
 }

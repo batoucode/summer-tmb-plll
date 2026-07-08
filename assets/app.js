@@ -692,7 +692,7 @@
         <div class="page-title">Espace Administrateur</div>
         <div class="tabs">
           <button class="tab ${adminTab === "users" ? "active" : ""}" data-tab="users">👥 Utilisateurs</button>
-          <button class="tab ${adminTab === "program" ? "active" : ""}" data-tab="program">📋 Programmes</button>
+          <button class="tab ${adminTab === "program" ? "active" : ""}" data-tab="program">🧑‍🏫 Vue Coach</button>
         </div>
         <div id="adminTabBody"></div>
       </div>
@@ -826,17 +826,30 @@
     }
   }
 
+  /* Rend la même mise en page "Espace Coach" (titre + éditeur de
+     programme) pour le coach lui-même ET pour l'admin qui veut voir/éditer
+     exactement ce que voient les coachs, catégorie par catégorie. */
+  async function renderCoachStyleProgram(container, { categoryId, allowedCategories, lockCategory, nested }) {
+    const inner = `
+      <div class="page-title">Espace Coach</div>
+      <div id="coachEditor"></div>
+    `;
+    container.innerHTML = nested ? inner : `<div class="page">${inner}</div>`;
+    await mountProgramEditor($("#coachEditor", container), {
+      categoryId, week: 1, allowedCategories, lockCategory
+    });
+  }
+
   async function renderAdminProgramTab(body) {
-    body.innerHTML = `<div id="adminProgramEditor"></div>`;
     if (!categories.length) {
-      $("#adminProgramEditor", body).innerHTML = `<div class="empty-state">Aucune catégorie : importe d'abord le programme par défaut depuis l'onglet Utilisateurs.</div>`;
+      body.innerHTML = `<div class="empty-state">Aucune catégorie : importe d'abord le programme par défaut depuis l'onglet Utilisateurs.</div>`;
       return;
     }
-    await mountProgramEditor($("#adminProgramEditor", body), {
+    await renderCoachStyleProgram(body, {
       categoryId: categories[0].id,
-      week: 1,
       allowedCategories: null,
-      lockCategory: false
+      lockCategory: false,
+      nested: true
     });
   }
 
@@ -849,15 +862,8 @@
       root.innerHTML = `<div class="page"><div class="empty-state">Aucune catégorie ne t'est assignée pour le moment. Contacte un administrateur.</div></div>`;
       return;
     }
-    root.innerHTML = `
-      <div class="page">
-        <div class="page-title">Espace Coach</div>
-        <div id="coachEditor"></div>
-      </div>
-    `;
-    await mountProgramEditor($("#coachEditor", root), {
+    await renderCoachStyleProgram(root, {
       categoryId: profile.assigned_category_id,
-      week: 1,
       allowedCategories: categories.filter((c) => c.id === profile.assigned_category_id),
       lockCategory: true
     });
