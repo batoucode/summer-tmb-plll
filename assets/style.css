@@ -14,6 +14,8 @@
   --green-dim: #dcfce7;
   --orange: #f97316;
   --orange-dim: #ffedd5;
+  --teal: #0d9488;
+  --teal-dim: #ccfbf1;
   --red: #dc2626;
   --red-dim: #fee2e2;
 
@@ -30,6 +32,22 @@
   --shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.10);
   --pad: 24px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #10131a;
+  --surface: #1b1f2a;
+  --surface-2: #232838;
+  --border: #313a52;
+  --text: #f1f5f9;
+  --text-dim: #cbd5e1;
+  --text-faint: #8b93a7;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.55);
+  --green-dim: #10301f;
+  --orange-dim: #3a2410;
+  --teal-dim: #0f2e2b;
+  --red-dim: #3a141c;
 }
 
 * { box-sizing: border-box; }
@@ -95,6 +113,7 @@ a { color: var(--tmb-red); }
 .btn-danger-ghost { background: var(--red-dim); color: var(--red); min-height: 40px; padding: 8px 16px; }
 .btn-danger-ghost:hover { background: var(--red); color: #fff; }
 .btn-block { width: 100%; }
+.theme-toggle { min-height: 40px; min-width: 40px; padding: 8px; font-size: 1.1rem; line-height: 1; }
 .btn-publish { margin-top: 20px; background: var(--green); }
 .btn-publish:hover { background: #128a3e; }
 
@@ -175,6 +194,7 @@ a { color: var(--tmb-red); }
 /* ---------- Admin: users table ---------- */
 .admin-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .table-wrap { overflow-x: auto; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
+.table-scroll { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); }
 .data-table th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); }
@@ -182,6 +202,17 @@ a { color: var(--tmb-red); }
 .data-table tr:last-child td { border-bottom: none; }
 
 /* ---------- Program editor ---------- */
+/* Cartes de section colorées : un accent différent par bloc logique
+   (semaine / jour / exercices) pour repérer la structure d'un coup d'œil. */
+.section-card { border-left: 5px solid transparent; }
+.section-eyebrow { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+.section-card--week { border-left-color: var(--blue); }
+.section-card--week .section-eyebrow { color: var(--blue); }
+.section-card--day { border-left-color: var(--orange); }
+.section-card--day .section-eyebrow { color: var(--orange); }
+.section-card--exo { border-left-color: var(--teal); }
+.section-card--exo .section-eyebrow { color: var(--teal); }
+
 .editor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px var(--pad); }
 .locked-cat { font-weight: 700; }
 .week-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
