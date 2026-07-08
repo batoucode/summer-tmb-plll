@@ -1,4 +1,9 @@
 /* ============================================================
+   ARCHIVE — version pré-découpage en modules (2026-07-08).
+   Remplacée par assets/js/*.js (voir docs/ARCHITECTURE.md à la racine
+   du dépôt). Conservée ici pour référence/rollback, non chargée par
+   index.html.
+   ============================================================
    TMB SUMMER BOOK v2 — Plateforme multi-rôles (admin / coach / player)
    Vanilla JS, aucune dépendance hors @supabase/supabase-js (CDN).
    Toutes les données transitent par Supabase (Auth + Postgres/RLS) :

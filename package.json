@@ -1,0 +1,13 @@
+{
+  "name": "tmb-summer-book-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Outillage de test (dev uniquement) pour TMB Summer Book. L'app livrée reste 100% statique, sans build ni dépendance runtime — voir docs/ARCHITECTURE.md.",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:security": "node security/run-all.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

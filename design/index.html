@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TMB Summer Book — Charte graphique</title>
+<meta name="description" content="Catalogue de tous les composants de l'app, sans connexion ni Supabase requis — pour essayer et harmoniser le design.">
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  /* Styles propres à CETTE page de démonstration uniquement (jamais
+     utilisés par l'app réelle) — préfixés .dg- pour ne jamais entrer
+     en collision avec les classes de assets/style.css. */
+  body { background: var(--bg); }
+  .dg-shell { max-width: 1100px; margin: 0 auto; padding: 32px 24px 120px; }
+  .dg-header { margin-bottom: 40px; }
+  .dg-header h1 { font-size: 2rem; font-weight: 900; margin: 0 0 8px; }
+  .dg-header p { color: var(--text-dim); max-width: 640px; line-height: 1.6; }
+  .dg-nav { position: sticky; top: 0; z-index: 30; background: var(--bg); padding: 12px 0; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .dg-nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .dg-nav a { font-size: 0.82rem; font-weight: 700; color: var(--text-dim); text-decoration: none; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); }
+  .dg-nav a:hover { color: var(--blue); border-color: var(--blue); }
+  .dg-section { margin: 56px 0; scroll-margin-top: 70px; }
+  .dg-section h2 { font-size: 1.3rem; font-weight: 800; margin: 0 0 6px; }
+  .dg-section .dg-hint { color: var(--text-faint); font-size: 0.88rem; margin-bottom: 20px; }
+  .dg-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .dg-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+  .dg-swatch { border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
+  .dg-swatch-color { height: 64px; }
+  .dg-swatch-label { padding: 8px 10px; font-size: 0.78rem; }
+  .dg-swatch-label code { display: block; color: var(--text-faint); font-size: 0.72rem; margin-top: 2px; }
+  .dg-type-sample { margin-bottom: 14px; }
+  .dg-type-sample .dg-meta { color: var(--text-faint); font-size: 0.78rem; margin-top: 2px; }
+  .dg-frame { background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); padding: 20px; }
+  .dg-frame-dark { background: var(--tmb-red-dark); border: none; padding: 32px 20px; border-radius: var(--radius); overflow: hidden; }
+  code.dg-code { background: var(--surface-2); border-radius: 6px; padding: 2px 6px; font-size: 0.82rem; }
+</style>
+</head>
+<body>
+
+<nav class="dg-nav">
+  <div class="dg-nav-inner">
+    <a href="#couleurs">Couleurs</a>
+    <a href="#typo">Typographie</a>
+    <a href="#boutons">Boutons</a>
+    <a href="#badges">Badges &amp; pastilles</a>
+    <a href="#onglets">Onglets</a>
+    <a href="#formulaires">Formulaires</a>
+    <a href="#cartes">Cartes</a>
+    <a href="#tableau">Tableau admin</a>
+    <a href="#jours">Cartes de jour</a>
+    <a href="#exercices">Cartes d'exercice</a>
+    <a href="#progression">Progression</a>
+    <a href="#notifications">Notifications</a>
+    <a href="#auth">Page de connexion</a>
+  </div>
+</nav>
+
+<div class="dg-shell">
+  <header class="dg-header">
+    <h1>🏀 Charte graphique — TMB Summer Book</h1>
+    <p>
+      Cette page ne se connecte à rien (pas de Supabase, pas de compte) : elle réutilise
+      directement <code class="dg-code">assets/style.css</code>, exactement comme l'app.
+      C'est l'endroit pour essayer des changements de design rapidement — modifie les
+      variables tout en haut de <code class="dg-code">assets/style.css</code> (couleurs,
+      espacements, rayons, ombres) et recharge cette page : tout ce qui est montré
+      ci-dessous change en même temps que l'app réelle, garanti harmonisé.
+    </p>
+  </header>
+
+  <section class="dg-section" id="couleurs">
+    <h2>Couleurs</h2>
+    <p class="dg-hint">Définies une seule fois en haut de <code class="dg-code">assets/style.css</code> (bloc <code class="dg-code">:root</code>). Changer une valeur ici la change partout dans l'app.</p>
+    <div class="dg-swatches">
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--blue)"></div><div class="dg-swatch-label">Bleu (coach)<code>--blue</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--green)"></div><div class="dg-swatch-label">Vert (joueur / validé)<code>--green</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--orange)"></div><div class="dg-swatch-label">Orange (admin / partiel)<code>--orange</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--red)"></div><div class="dg-swatch-label">Rouge (erreurs)<code>--red</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--tmb-red)"></div><div class="dg-swatch-label">Rouge TMB (page de connexion)<code>--tmb-red</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--tmb-red-dark)"></div><div class="dg-swatch-label">Rouge TMB foncé<code>--tmb-red-dark</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--text)"></div><div class="dg-swatch-label">Texte principal<code>--text</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--text-dim)"></div><div class="dg-swatch-label">Texte atténué<code>--text-dim</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--text-faint)"></div><div class="dg-swatch-label">Texte discret<code>--text-faint</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--border)"></div><div class="dg-swatch-label">Bordures<code>--border</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--bg)"></div><div class="dg-swatch-label">Fond de page<code>--bg</code></div></div>
+      <div class="dg-swatch"><div class="dg-swatch-color" style="background:var(--surface)"></div><div class="dg-swatch-label">Surface (cartes)<code>--surface</code></div></div>
+    </div>
+  </section>
+
+  <section class="dg-section" id="typo">
+    <h2>Typographie</h2>
+    <p class="dg-hint">Police système (aucun fichier à charger), taille de base 16px minimum partout pour rester lisible sur mobile.</p>
+    <div class="dg-frame">
+      <div class="dg-type-sample"><div class="page-eyebrow">Eyebrow / kicker — .page-eyebrow</div></div>
+      <div class="dg-type-sample"><div class="page-title">Titre de page — .page-title</div></div>
+      <div class="dg-type-sample"><div class="section-title">Titre de section — .section-title</div></div>
+      <div class="dg-type-sample"><p style="color:var(--text)">Texte courant, 16px, var(--text)</p></div>
+      <div class="dg-type-sample"><p style="color:var(--text-dim)">Texte atténué, var(--text-dim)</p></div>
+      <div class="dg-type-sample"><p style="color:var(--text-faint)">Texte discret, var(--text-faint)</p></div>
+    </div>
+  </section>
+
+  <section class="dg-section" id="boutons">
+    <h2>Boutons</h2>
+    <p class="dg-hint">Hauteur minimum 48px (cible tactile confortable), sauf variantes "ghost" plus discrètes.</p>
+    <div class="dg-row">
+      <button class="btn-primary">Primaire</button>
+      <button class="btn-primary" disabled>Primaire désactivé</button>
+      <button class="btn-secondary">Secondaire</button>
+      <button class="btn-ghost">Ghost</button>
+      <button class="btn-danger-ghost">🗑️ Danger ghost</button>
+      <button class="btn-primary btn-publish">📤 Publier (variante verte)</button>
+    </div>
+  </section>
+
+  <section class="dg-section" id="badges">
+    <h2>Badges &amp; pastilles de statut</h2>
+    <div class="dg-row">
+      <span class="role-badge role-admin">Admin</span>
+      <span class="role-badge role-coach">Coach</span>
+      <span class="role-badge role-player">Joueur</span>
+    </div>
+    <p class="dg-hint" style="margin-top:20px">Pastilles de statut d'un jour (vue Joueur) :</p>
+    <div class="dg-row">
+      <span class="status-pill done">Fait</span>
+      <span class="status-pill partial">2/4</span>
+      <span class="status-pill todo">À faire</span>
+      <span class="status-pill rest">Repos</span>
+    </div>
+  </section>
+
+  <section class="dg-section" id="onglets">
+    <h2>Onglets</h2>
+    <div class="dg-row" style="margin-bottom:16px">
+      <div class="auth-tabs" style="width:280px">
+        <button class="auth-tab active">Connexion</button>
+        <button class="auth-tab">Inscription</button>
+      </div>
+    </div>
+    <div class="dg-row" style="margin-bottom:16px">
+      <div class="tabs">
+        <button class="tab active">👥 Utilisateurs</button>
+        <button class="tab">📋 Programmes</button>
+      </div>
+    </div>
+    <div class="week-tabs" style="margin-bottom:8px">
+      <button class="week-tab active">S1</button>
+      <button class="week-tab">S2</button>
+      <button class="week-tab">S3</button>
+      <button class="week-tab">S4</button>
+      <button class="week-tab">S5</button>
+    </div>
+    <div class="week-tabs" style="margin-bottom:8px">
+      <button class="week-tab round active">S1</button>
+      <button class="week-tab round">S2</button>
+    </div>
+    <div class="week-tabs" id="edDayTabs">
+      <button class="week-tab active">Lun</button>
+      <button class="week-tab">Mar</button>
+      <button class="week-tab is-rest">Mer</button>
+      <button class="week-tab is-empty">Jeu</button>
+      <button class="week-tab">🏆</button>
+    </div>
+  </section>
+
+  <section class="dg-section" id="formulaires">
+    <h2>Champs de formulaire</h2>
+    <div class="dg-frame">
+      <div class="field-row">
+        <div class="field">
+          <label>Texte</label>
+          <input type="text" placeholder="ex: Goblet Squat">
+        </div>
+        <div class="field">
+          <label>Nombre</label>
+          <input type="number" value="3">
+        </div>
+      </div>
+      <div class="field">
+        <label>Sélecteur</label>
+        <select><option>U13</option><option>U15</option></select>
+      </div>
+      <div class="field">
+        <label>Texte long</label>
+        <textarea rows="2">Exemple de texte plus long, comme un objectif de semaine.</textarea>
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" checked>
+        <span>Case à cocher (ex: jour de repos)</span>
+      </label>
+      <div class="form-error">Exemple de message d'erreur de formulaire.</div>
+    </div>
+  </section>
+
+  <section class="dg-section" id="cartes">
+    <h2>Cartes génériques</h2>
+    <div class="dg-row">
+      <div class="card" style="width:260px"><strong>.card</strong><p style="margin-top:8px;color:var(--text-dim)">Bloc générique (ex: formulaire "ajouter un compte").</p></div>
+      <div class="info-card" style="width:260px"><strong>.info-card</strong><p style="margin-top:8px;color:var(--text-dim)">Encadré d'information (échauffement, RPE, mot du staff...).</p></div>
+      <div class="empty-state" style="width:260px">.empty-state — état vide ou chargement</div>
+      <div class="empty-state error-card" style="width:260px">
+        <p>⚠️ Exemple de carte d'erreur (module en panne)</p>
+        <p class="error-detail">Détail technique de l'erreur ici.</p>
+        <button class="btn-secondary">Réessayer</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="dg-section" id="tableau">
+    <h2>Tableau admin (utilisateurs)</h2>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Âge</th><th>Catégorie</th><th>Rôle</th><th></th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Desmarchais</td><td>Batou</td><td>batou@tmb-plll.fr</td><td>—</td>
+            <td><select><option>U13</option></select></td>
+            <td><select><option>Admin</option></select></td>
+            <td><button class="btn-danger-ghost">🗑️</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dg-section" id="jours">
+    <h2>Cartes de jour (vue Joueur — aperçu semaine)</h2>
+    <div class="day-list" style="max-width:480px">
+      <button type="button" class="day-card done">
+        <div class="day-card-left"><div class="day-name">Lundi</div><div class="day-session">Force bas du corps</div></div>
+        <span class="status-pill done">Fait</span>
+      </button>
+      <button type="button" class="day-card partial">
+        <div class="day-card-left"><div class="day-name">Mardi</div><div class="day-session">Développement aérobie</div></div>
+        <span class="status-pill partial">1/3</span>
+      </button>
+      <button type="button" class="day-card todo">
+        <div class="day-card-left"><div class="day-name">Jeudi</div><div class="day-session">Force haut du corps</div></div>
+        <span class="status-pill todo">À faire</span>
+      </button>
+      <button type="button" class="day-card rest" disabled>
+        <div class="day-card-left"><div class="day-name">Mercredi</div><div class="day-session">Repos</div></div>
+        <span class="status-pill rest">Repos</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="dg-section" id="exercices">
+    <h2>Cartes d'exercice (détail d'un jour)</h2>
+    <div class="player-exo-grid" style="max-width:640px">
+      <div class="player-exo-card is-done">
+        <div class="pe-top"><div class="pe-name">Goblet Squat</div><button class="pe-check">✅</button></div>
+        <div class="pe-meta"><span class="pe-chip">🔄 3 X 10</span><span class="pe-chip">💪 6/10</span></div>
+        <a class="pe-video" href="#">▶ Voir la vidéo</a>
+      </div>
+      <div class="player-exo-card">
+        <div class="pe-top"><div class="pe-name">Gainage</div><button class="pe-check">⬜</button></div>
+        <div class="pe-meta"><span class="pe-chip">🔄 2 X 30 sec</span><span class="pe-chip">💪 5/10</span></div>
+      </div>
+    </div>
+    <p class="dg-hint" style="margin-top:24px">Carte d'édition (admin / coach) :</p>
+    <div class="exo-edit-grid" style="max-width:340px">
+      <div class="exo-edit-card">
+        <div class="field-row"><div class="field field-grow"><label>Nom de l'exercice</label><input type="text" value="Goblet Squat"></div></div>
+        <div class="field-row">
+          <div class="field"><label>🔄 Séries</label><input type="number" value="3"></div>
+          <div class="field"><label>⏱️ Durée (sec)</label><input type="number"></div>
+          <div class="field"><label>💪 Intensité</label><input type="number" value="6"></div>
+        </div>
+        <button class="btn-danger-ghost">🗑️ Supprimer</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="dg-section" id="progression">
+    <h2>Anneau de progression</h2>
+    <div class="progress-card">
+      <div class="progress-ring" style="--pct:65"><div class="progress-ring-inner">65%</div></div>
+      <div class="progress-labels">
+        <div class="title">Progression de la semaine</div>
+        <div class="sub">13 / 20 exercices validés</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="dg-section" id="notifications">
+    <h2>Notifications (toast)</h2>
+    <p class="dg-hint">Cliquer pour prévisualiser (disparaît après ~4 secondes, comme dans l'app).</p>
+    <div class="dg-row">
+      <button class="btn-secondary" id="dgToastOk">Afficher un toast normal</button>
+      <button class="btn-danger-ghost" id="dgToastErr">Afficher un toast d'erreur</button>
+    </div>
+  </section>
+
+  <section class="dg-section" id="auth">
+    <h2>Page de connexion (thème rouge TMB)</h2>
+    <p class="dg-hint">Aperçu réduit — la vraie page est en plein écran. Voir <code class="dg-code">assets/js/30-view-auth.js</code>.</p>
+    <div class="dg-frame-dark">
+      <div class="dg-frame-dark-inner auth-wrap" style="display:contents">
+        <div class="auth-card" style="margin:0 auto">
+          <div class="auth-logo-img" style="height:64px;display:flex;align-items:center;justify-content:center;font-size:38px">🏀</div>
+          <h1>Summer 2026<br>TMB-PLLL</h1>
+          <p class="auth-sub">Ton programme de préparation physique estivale : séances, exercices et suivi de progression, tout l'été avec le TMB.</p>
+          <div class="auth-tabs"><button class="auth-tab active">Connexion</button><button class="auth-tab">Inscription</button></div>
+          <div class="field"><label>Email</label><input type="email"></div>
+          <div class="field"><label>Mot de passe</label><input type="password"></div>
+          <button class="btn-primary btn-block">Se connecter</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script>
+  // Démo locale uniquement — ne charge aucun module de l'app (voir
+  // assets/js/README.md), juste assez de JS pour prévisualiser le toast.
+  function dgToast(message, isError) {
+    var box = document.getElementById("toast");
+    box.textContent = message;
+    box.classList.remove("hidden");
+    box.classList.toggle("toast-error", !!isError);
+    clearTimeout(window.__dgToastTimer);
+    window.__dgToastTimer = setTimeout(function () { box.classList.add("hidden"); }, 3800);
+  }
+  document.getElementById("dgToastOk").addEventListener("click", function () { dgToast("Programme publié ✅"); });
+  document.getElementById("dgToastErr").addEventListener("click", function () { dgToast("Erreur : action refusée.", true); });
+</script>
+</body>
+</html>

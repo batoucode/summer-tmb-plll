@@ -1,3 +1,10 @@
 .claude/
 .DS_Store
 Thumbs.db
+
+# Outillage de dev (tests) — jamais expédié avec l'app statique
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

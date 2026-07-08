@@ -3,7 +3,13 @@
    Cartes spacieuses, gros boutons tactiles, palette dynamique.
    ============================================================ */
 
+/* ============================================================
+   TOKENS — source unique pour toute l'app + la page de style
+   (design/index.html). Modifier une valeur ici la répercute partout :
+   c'est le point d'entrée pour harmoniser un changement de design.
+   ============================================================ */
 :root {
+  /* Couleurs de fonction (app "Sportif & Aéré" : admin/coach/joueur) */
   --blue: #2563eb;
   --blue-dark: #1d4ed8;
   --green: #16a34a;
@@ -13,6 +19,12 @@
   --red: #dc2626;
   --red-dim: #fee2e2;
 
+  /* Couleur de marque TMB (page de connexion) */
+  --tmb-red: #c8102e;
+  --tmb-red-dark: #7a0a1c;
+  --tmb-red-light: #ff4d5e;
+
+  /* Neutres */
   --bg: #f4f6fb;
   --surface: #ffffff;
   --surface-2: #f8fafc;
@@ -21,6 +33,7 @@
   --text-dim: #475569;
   --text-faint: #94a3b8;
 
+  /* Échelle d'espacement / rayons / ombres */
   --radius: 18px;
   --radius-sm: 12px;
   --shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
@@ -126,11 +139,6 @@ a { color: var(--blue); }
 .form-error { color: var(--red); font-size: 0.9rem; min-height: 1.2em; }
 
 /* ---------- Auth (page de connexion / inscription — thème rouge TMB) ---------- */
-:root {
-  --tmb-red: #c8102e;
-  --tmb-red-dark: #7a0a1c;
-  --tmb-red-light: #ff4d5e;
-}
 .auth-wrap {
   min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--pad);
   background:
@@ -258,6 +266,12 @@ a { color: var(--blue); }
   font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
 }
 .pe-video { display: inline-block; margin-top: 14px; font-weight: 700; }
+
+/* ---------- Error boundary (voir assets/js/02-error-boundary.js) ---------- */
+.error-card { border: 1.5px solid var(--red-dim); }
+.error-card p:first-child { font-weight: 800; color: var(--red); }
+.error-detail { font-size: 0.85rem; color: var(--text-faint); margin-top: 6px; word-break: break-word; }
+.error-card .btn-secondary { margin-top: 16px; }
 
 /* ---------- Toast ---------- */
 .toast {
