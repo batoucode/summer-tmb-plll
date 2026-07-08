@@ -13,6 +13,16 @@
 (function () {
   "use strict";
 
+  /* ---------------- Thème clair / sombre ---------------- */
+  const THEME_KEY = "tmb_theme";
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_KEY, theme);
+    const btn = document.getElementById("themeToggle");
+    if (btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
+  }
+  applyTheme(localStorage.getItem(THEME_KEY) || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+
   if (typeof window.supabase === "undefined" || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
     document.body.innerHTML = '<div class="boot-error">Configuration Supabase manquante (assets/supabase-config.js).</div>';
     return;
@@ -459,7 +469,8 @@
       dayIndex: 0,
       allowedCategories: opts.allowedCategories, // null = toutes
       plan: null,
-      days: [] // jours existants en base pour ce plan
+      days: [], // jours existants en base pour ce plan
+      exoEditMode: false // false = tableau résumé, true = édition des cartes
     };
 
     function dayByIndex(idx) { return state.days.find((d) => d.day_index === idx); }
@@ -488,7 +499,8 @@
         </div>
 
         ${state.plan ? `
-        <div class="plan-card">
+        <div class="plan-card section-card section-card--week">
+          <div class="section-eyebrow">Semaine</div>
           <div class="field">
             <label>Objectif de la semaine</label>
             <textarea id="edObjective" rows="2">${escapeHtml(state.plan.objective || "")}</textarea>
@@ -539,6 +551,7 @@
 
       $$("#edDayTabs .week-tab", container).forEach((btn) => btn.addEventListener("click", () => {
         state.dayIndex = Number(btn.dataset.d);
+        state.exoEditMode = false;
         drawDay();
       }));
 
@@ -572,6 +585,7 @@
           try {
             const newDay = await ensureDay(state.plan.id, state.dayIndex);
             state.days.push(newDay);
+            state.exoEditMode = false;
             drawDay();
           } catch (err) { toast(err.message || String(err), true); }
         });
@@ -579,7 +593,8 @@
       }
 
       body.innerHTML = `
-        <div class="plan-card">
+        <div class="plan-card section-card section-card--day">
+          <div class="section-eyebrow">Jour</div>
           <div class="field-row">
             <div class="field field-grow">
               <label>Intitulé de la séance</label>
@@ -603,10 +618,9 @@
           </div>
         </div>
 
-        <div id="dyExoSection" style="${day.is_rest ? "display:none" : ""}">
-          <div class="section-title">Exercices</div>
-          <div id="edExoList" class="exo-edit-grid"></div>
-          <button type="button" class="btn-secondary" id="edAddExo">➕ Ajouter un exercice</button>
+        <div id="dyExoSection" class="plan-card section-card section-card--exo" style="${day.is_rest ? "display:none" : ""}">
+          <div class="section-eyebrow">Exercices</div>
+          <div id="edExoBody"></div>
         </div>
 
         <button type="button" class="btn-primary btn-block btn-publish" id="edPublish">📤 Publier les modifications</button>
@@ -619,32 +633,76 @@
         });
       }
 
-      const list = $("#edExoList", body);
-      function bindExoCard(card) {
-        $(".btn-del-exo", card).addEventListener("click", async () => {
-          const id = card.dataset.id;
-          if (!confirm("Supprimer cet exercice ?")) return;
-          try {
-            if (id) await deleteExercise(id);
-            card.remove();
-            toast("Exercice supprimé.");
-          } catch (err) { toast(err.message || String(err), true); }
+      drawExoBody();
+
+      function drawExoBody() {
+        const exoBody = $("#edExoBody", body);
+        if (!state.exoEditMode) {
+          exoBody.innerHTML = day.exercises.length ? `
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Exercice</th><th>Séries</th><th>Consigne</th><th>Durée</th><th>Intensité</th></tr></thead>
+                <tbody>
+                  ${day.exercises.map((ex) => `
+                    <tr>
+                      <td>${escapeHtml(ex.name)}</td>
+                      <td>${ex.sets ?? "—"}</td>
+                      <td>${escapeHtml(ex.reps || "—")}</td>
+                      <td>${ex.duration ? ex.duration + "s" : "—"}</td>
+                      <td>${ex.intensity ? ex.intensity + "/10" : "—"}</td>
+                    </tr>`).join("")}
+                </tbody>
+              </table>
+            </div>
+          ` : `<div class="empty-state">Aucun exercice pour cette séance.</div>`;
+          exoBody.insertAdjacentHTML("beforeend", `<button type="button" class="btn-secondary" id="edToggleExoEdit">✏️ Modifier les exercices</button>`);
+          $("#edToggleExoEdit", exoBody).addEventListener("click", () => {
+            state.exoEditMode = true;
+            drawExoBody();
+          });
+          return;
+        }
+
+        exoBody.innerHTML = `
+          <div id="edExoList" class="exo-edit-grid"></div>
+          <div class="field-row">
+            <button type="button" class="btn-secondary" id="edAddExo">➕ Ajouter un exercice</button>
+            <button type="button" class="btn-ghost" id="edBackToSummary">← Revenir au résumé</button>
+          </div>
+        `;
+
+        const list = $("#edExoList", exoBody);
+        function bindExoCard(card) {
+          $(".btn-del-exo", card).addEventListener("click", async () => {
+            const id = card.dataset.id;
+            if (!confirm("Supprimer cet exercice ?")) return;
+            try {
+              if (id) await deleteExercise(id);
+              card.remove();
+              toast("Exercice supprimé.");
+            } catch (err) { toast(err.message || String(err), true); }
+          });
+        }
+        day.exercises.forEach((ex, idx) => {
+          const card = el(exerciseCardTemplate(ex, idx));
+          list.appendChild(card);
+          bindExoCard(card);
+        });
+
+        // Ajoute une carte vide directement dans le DOM (pas de redraw) pour
+        // ne pas perdre les champs déjà remplis (intitulé du jour, exercices
+        // en cours d'édition) qui ne sont pas encore publiés.
+        $("#edAddExo", exoBody).addEventListener("click", () => {
+          const card = el(exerciseCardTemplate({ id: null, name: "", sets: null, duration: null, intensity: 5, reps: "" }, list.children.length));
+          list.appendChild(card);
+          bindExoCard(card);
+        });
+
+        $("#edBackToSummary", exoBody).addEventListener("click", () => {
+          state.exoEditMode = false;
+          drawExoBody();
         });
       }
-      day.exercises.forEach((ex, idx) => {
-        const card = el(exerciseCardTemplate(ex, idx));
-        list.appendChild(card);
-        bindExoCard(card);
-      });
-
-      // Ajoute une carte vide directement dans le DOM (pas de redraw) pour
-      // ne pas perdre les champs déjà remplis (intitulé du jour, exercices
-      // en cours d'édition) qui ne sont pas encore publiés.
-      $("#edAddExo", body).addEventListener("click", () => {
-        const card = el(exerciseCardTemplate({ id: null, name: "", sets: null, duration: null, intensity: 5, reps: "" }, list.children.length));
-        list.appendChild(card);
-        bindExoCard(card);
-      });
 
       $("#edPublish", body).addEventListener("click", async () => {
         const btn = $("#edPublish", body);
@@ -672,6 +730,7 @@
               }
             }
           }
+          state.exoEditMode = false;
           toast("Programme publié ✅");
           await load();
         } catch (err) {
@@ -697,7 +756,7 @@
         <div class="page-title">Espace Administrateur</div>
         <div class="tabs">
           <button class="tab ${adminTab === "users" ? "active" : ""}" data-tab="users">👥 Utilisateurs</button>
-          <button class="tab ${adminTab === "program" ? "active" : ""}" data-tab="program">📋 Programmes</button>
+          <button class="tab ${adminTab === "program" ? "active" : ""}" data-tab="program">🧑‍🏫 Vue Coach</button>
         </div>
         <div id="adminTabBody"></div>
       </div>
@@ -831,17 +890,30 @@
     }
   }
 
+  /* Rend la même mise en page "Espace Coach" (titre + éditeur de
+     programme) pour le coach lui-même ET pour l'admin qui veut voir/éditer
+     exactement ce que voient les coachs, catégorie par catégorie. */
+  async function renderCoachStyleProgram(container, { categoryId, allowedCategories, lockCategory, nested }) {
+    const inner = `
+      <div class="page-title">Espace Coach</div>
+      <div id="coachEditor"></div>
+    `;
+    container.innerHTML = nested ? inner : `<div class="page">${inner}</div>`;
+    await mountProgramEditor($("#coachEditor", container), {
+      categoryId, week: 1, allowedCategories, lockCategory
+    });
+  }
+
   async function renderAdminProgramTab(body) {
-    body.innerHTML = `<div id="adminProgramEditor"></div>`;
     if (!categories.length) {
-      $("#adminProgramEditor", body).innerHTML = `<div class="empty-state">Aucune catégorie : importe d'abord le programme par défaut depuis l'onglet Utilisateurs.</div>`;
+      body.innerHTML = `<div class="empty-state">Aucune catégorie : importe d'abord le programme par défaut depuis l'onglet Utilisateurs.</div>`;
       return;
     }
-    await mountProgramEditor($("#adminProgramEditor", body), {
+    await renderCoachStyleProgram(body, {
       categoryId: categories[0].id,
-      week: 1,
       allowedCategories: null,
-      lockCategory: false
+      lockCategory: false,
+      nested: true
     });
   }
 
@@ -854,15 +926,8 @@
       root.innerHTML = `<div class="page"><div class="empty-state">Aucune catégorie ne t'est assignée pour le moment. Contacte un administrateur.</div></div>`;
       return;
     }
-    root.innerHTML = `
-      <div class="page">
-        <div class="page-title">Espace Coach</div>
-        <div id="coachEditor"></div>
-      </div>
-    `;
-    await mountProgramEditor($("#coachEditor", root), {
+    await renderCoachStyleProgram(root, {
       categoryId: profile.assigned_category_id,
-      week: 1,
       allowedCategories: categories.filter((c) => c.id === profile.assigned_category_id),
       lockCategory: true
     });
@@ -1101,6 +1166,9 @@
 
     $("#logoutBtn").addEventListener("click", async () => {
       await signOut();
+    });
+    $("#themeToggle").addEventListener("click", () => {
+      applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
     });
   }
 
