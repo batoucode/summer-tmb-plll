@@ -14,18 +14,12 @@
       root.innerHTML = `<div class="page"><div class="empty-state">Aucune catégorie ne t'est assignée pour le moment. Contacte un administrateur.</div></div>`;
       return;
     }
-    root.innerHTML = `
-      <div class="page">
-        <div class="page-title">Espace Coach</div>
-        <div id="coachEditor"></div>
-      </div>
-    `;
     const categories = window.TMB.state.categories;
-    await window.TMB.components.programEditor.mount($("#coachEditor", root), {
+    await window.TMB.components.programEditor.mountCoachStyleView(root, {
       categoryId: profile.assigned_category_id,
-      week: 1,
       allowedCategories: categories.filter((c) => c.id === profile.assigned_category_id),
-      lockCategory: true
+      lockCategory: true,
+      nested: false
     });
   }
 

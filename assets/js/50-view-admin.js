@@ -17,7 +17,7 @@
         <div class="page-title">Espace Administrateur</div>
         <div class="tabs">
           <button class="tab ${adminTab === "users" ? "active" : ""}" data-tab="users">👥 Utilisateurs</button>
-          <button class="tab ${adminTab === "program" ? "active" : ""}" data-tab="program">📋 Programmes</button>
+          <button class="tab ${adminTab === "program" ? "active" : ""}" data-tab="program">🧑‍🏫 Vue Coach</button>
         </div>
         <div id="adminTabBody"></div>
       </div>
@@ -153,17 +153,16 @@
   }
 
   async function renderAdminProgramTab(body) {
-    body.innerHTML = `<div id="adminProgramEditor"></div>`;
     const categories = window.TMB.state.categories;
     if (!categories.length) {
-      $("#adminProgramEditor", body).innerHTML = `<div class="empty-state">Aucune catégorie : importe d'abord le programme par défaut depuis l'onglet Utilisateurs.</div>`;
+      body.innerHTML = `<div class="empty-state">Aucune catégorie : importe d'abord le programme par défaut depuis l'onglet Utilisateurs.</div>`;
       return;
     }
-    await window.TMB.components.programEditor.mount($("#adminProgramEditor", body), {
+    await window.TMB.components.programEditor.mountCoachStyleView(body, {
       categoryId: categories[0].id,
-      week: 1,
       allowedCategories: null,
-      lockCategory: false
+      lockCategory: false,
+      nested: true
     });
   }
 

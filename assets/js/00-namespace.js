@@ -14,6 +14,7 @@
 window.TMB = {
   core: {},                 // helpers DOM génériques + constantes partagées
   errors: {},                // isolation de panne (safeRender, logs)
+  theme: {},                  // thème clair / sombre (localStorage + préférence système)
   state: {                    // état partagé, toujours lu "en direct" (jamais copié)
     session: null,
     profile: null,

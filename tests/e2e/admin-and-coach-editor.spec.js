@@ -24,6 +24,9 @@ test.describe("Éditeur de programme — Admin", () => {
     await expect(page.locator("#dyLabel")).toBeVisible();
 
     await page.fill("#dyLabel", "Force bas du corps");
+    // Les exercices s'affichent en résumé lecture seule par défaut ;
+    // il faut passer en mode édition pour ajouter une carte.
+    await page.click("#edToggleExoEdit");
     await page.click("#edAddExo");
     await page.fill('.exo-edit-card [data-f="name"]', "Squat");
     await page.click("#edPublish");

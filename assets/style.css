@@ -16,6 +16,8 @@
   --green-dim: #dcfce7;
   --orange: #f97316;
   --orange-dim: #ffedd5;
+  --teal: #0d9488;
+  --teal-dim: #ccfbf1;
   --red: #dc2626;
   --red-dim: #fee2e2;
 
@@ -41,6 +43,22 @@
   --pad: 24px;
 }
 
+:root[data-theme="dark"] {
+  --bg: #10131a;
+  --surface: #1b1f2a;
+  --surface-2: #232838;
+  --border: #313a52;
+  --text: #f1f5f9;
+  --text-dim: #cbd5e1;
+  --text-faint: #8b93a7;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.55);
+  --green-dim: #10301f;
+  --orange-dim: #3a2410;
+  --teal-dim: #0f2e2b;
+  --red-dim: #3a141c;
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -53,7 +71,7 @@ body {
 }
 button, input, select, textarea { font-family: inherit; font-size: 1rem; }
 h1, h2, h3, p { margin: 0; }
-a { color: var(--blue); }
+a { color: var(--tmb-red); }
 
 .hidden { display: none !important; }
 
@@ -62,19 +80,21 @@ a { color: var(--blue); }
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px;
-  padding: 16px var(--pad);
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--pad) 12px;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 3px solid var(--tmb-red);
 }
-.topbar-brand { display: flex; align-items: center; gap: 12px; }
-.topbar-ball { font-size: 28px; }
-.topbar-titles .name { font-weight: 800; font-size: 1.05rem; }
+.topbar-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.topbar-ball { display: flex; align-items: center; flex-shrink: 0; }
+.topbar-logo-img { height: 32px; width: auto; object-fit: contain; }
+.topbar-titles { min-width: 0; }
+.topbar-titles .name { font-weight: 800; font-size: 1.05rem; color: var(--tmb-red); }
 .topbar-titles .sub { font-size: 0.8rem; color: var(--text-faint); }
 .topbar-user { display: flex; align-items: center; gap: 12px; }
 .user-name { font-weight: 600; }
 .role-badge {
   padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
-  background: var(--blue); color: #fff;
+  background: var(--tmb-red); color: #fff;
 }
 .role-badge.role-admin { background: var(--orange); }
 .role-badge.role-coach { background: var(--blue); }
@@ -91,8 +111,8 @@ a { color: var(--blue); }
   cursor: pointer;
   transition: transform 0.08s ease, opacity 0.15s ease;
 }
-.btn-primary { background: var(--blue); color: #fff; }
-.btn-primary:hover { background: var(--blue-dark); }
+.btn-primary { background: var(--tmb-red); color: #fff; }
+.btn-primary:hover { background: var(--tmb-red-dark); }
 .btn-primary:active { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.6; cursor: default; }
 .btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); }
@@ -102,13 +122,14 @@ a { color: var(--blue); }
 .btn-danger-ghost { background: var(--red-dim); color: var(--red); min-height: 40px; padding: 8px 16px; }
 .btn-danger-ghost:hover { background: var(--red); color: #fff; }
 .btn-block { width: 100%; }
+.theme-toggle { min-height: 40px; min-width: 40px; padding: 8px; font-size: 1.1rem; line-height: 1; }
 .btn-publish { margin-top: 20px; background: var(--green); }
 .btn-publish:hover { background: #128a3e; }
 
 /* ---------- Layout ---------- */
 #appRoot { max-width: 980px; margin: 0 auto; padding: 0 var(--pad) 64px; }
 .page { padding-top: 28px; display: flex; flex-direction: column; gap: 20px; }
-.page-eyebrow { font-size: 0.85rem; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: 0.04em; }
+.page-eyebrow { font-size: 0.85rem; font-weight: 700; color: var(--tmb-red); text-transform: uppercase; letter-spacing: 0.04em; }
 .page-title { font-size: 1.6rem; font-weight: 800; }
 .section-title { font-size: 1.05rem; font-weight: 800; margin-top: 8px; }
 
@@ -133,7 +154,7 @@ a { color: var(--blue); }
 }
 .field textarea { min-height: 64px; resize: vertical; }
 .field input:focus, .field select:focus, .field textarea:focus {
-  outline: none; border-color: var(--blue); background: #fff;
+  outline: none; border-color: var(--tmb-red); background: #fff;
 }
 .field-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .form-error { color: var(--red); font-size: 0.9rem; min-height: 1.2em; }
@@ -177,11 +198,12 @@ a { color: var(--blue); }
   min-height: 44px; padding: 10px 18px; border-radius: 999px; border: 1.5px solid var(--border);
   background: var(--surface); color: var(--text-dim); font-weight: 700; cursor: pointer;
 }
-.tab.active { background: var(--text); color: #fff; border-color: var(--text); }
+.tab.active { background: var(--tmb-red); color: #fff; border-color: var(--tmb-red); }
 
 /* ---------- Admin: users table ---------- */
 .admin-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .table-wrap { overflow-x: auto; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
+.table-scroll { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); }
 .data-table th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); }
@@ -189,6 +211,17 @@ a { color: var(--blue); }
 .data-table tr:last-child td { border-bottom: none; }
 
 /* ---------- Program editor ---------- */
+/* Cartes de section colorées : un accent différent par bloc logique
+   (semaine / jour / exercices) pour repérer la structure d'un coup d'œil. */
+.section-card { border-left: 5px solid transparent; }
+.section-eyebrow { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+.section-card--week { border-left-color: var(--blue); }
+.section-card--week .section-eyebrow { color: var(--blue); }
+.section-card--day { border-left-color: var(--orange); }
+.section-card--day .section-eyebrow { color: var(--orange); }
+.section-card--exo { border-left-color: var(--teal); }
+.section-card--exo .section-eyebrow { color: var(--teal); }
+
 .editor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px var(--pad); }
 .locked-cat { font-weight: 700; }
 .week-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -283,9 +316,47 @@ a { color: var(--blue); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 640px) {
-  :root { --pad: 16px; }
-  .topbar { padding: 12px var(--pad); flex-wrap: wrap; }
+  :root { --pad: 14px; --radius: 14px; }
+  body { font-size: 15px; }
+
+  .topbar {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) var(--pad) 10px;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .topbar-titles .sub { display: none; }
+  .topbar-user { width: 100%; justify-content: space-between; }
+  .topbar-logo-img { height: 26px; }
+
   .auth-card { padding: 28px 20px; }
   .progress-card { flex-direction: column; align-items: flex-start; }
   .field-row { flex-direction: column; }
+
+  .page-title { font-size: 1.35rem; }
+  #appRoot { padding: 0 var(--pad) 48px; }
+
+  /* Onglets et sélecteurs de semaine/jour : défilement horizontal plutôt
+     que retour à la ligne, pour rester utilisables au pouce sur petit écran. */
+  .tabs, .week-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar, .week-tabs::-webkit-scrollbar { display: none; }
+  .tabs .tab, .week-tabs .week-tab { flex-shrink: 0; }
+
+  .editor-toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .admin-actions { flex-direction: column; align-items: stretch; }
+  .admin-actions .btn-primary, .admin-actions .btn-secondary { width: 100%; }
+
+  .exo-edit-grid, .player-exo-grid { grid-template-columns: 1fr; }
+
+  .day-card { padding: 14px 16px; }
+}
+
+@media (max-width: 400px) {
+  .auth-card { padding: 24px 16px; }
+  .auth-logo-img { height: 44px; }
+  .auth-card h1 { font-size: 1.3rem; }
 }

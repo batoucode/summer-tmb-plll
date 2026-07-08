@@ -70,6 +70,11 @@
         await window.TMB.auth.signOut();
       });
     }
+
+    const themeToggle = $("#themeToggle");
+    if (themeToggle) {
+      themeToggle.addEventListener("click", () => window.TMB.theme.toggleTheme());
+    }
   }
 
   window.TMB.bootstrap.handleSessionChange = handleSessionChange;
