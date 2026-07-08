@@ -307,14 +307,15 @@
      VUE : AUTH (connexion / inscription)
      ================================================================ */
   let authMode = "login"; // "login" | "signup"
+  const TMB_LOGO_URL = "https://toursmetropolebasket.com/wp-content/themes/utbm/build/svg/logoUTBM.svg";
   function renderAuthView() {
     const root = $("#view-auth");
     root.innerHTML = `
       <div class="auth-wrap">
         <div class="auth-card">
-          <div class="auth-logo">🏀</div>
-          <h1>TMB Summer Book</h1>
-          <p class="auth-sub">Préparation physique estivale — 2026-2027</p>
+          <img class="auth-logo-img" src="${TMB_LOGO_URL}" alt="Tours Métropole Basket" loading="eager">
+          <h1>Summer 2026<br>TMB-PLLL</h1>
+          <p class="auth-sub">Ton programme de préparation physique estivale : séances, exercices et suivi de progression, tout l'été avec le TMB.</p>
 
           <div class="auth-tabs">
             <button class="auth-tab ${authMode === "login" ? "active" : ""}" data-mode="login">Connexion</button>
