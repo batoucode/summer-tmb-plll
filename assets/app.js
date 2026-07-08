@@ -1,899 +1,852 @@
 /* ============================================================
-   TMB SUMMER BOOK — LOGIQUE DE L'APPLICATION
-   Vanilla JS, routeur par hash, aucune dépendance externe.
+   TMB SUMMER BOOK v2 — Plateforme multi-rôles (admin / coach / player)
+   Vanilla JS, aucune dépendance hors @supabase/supabase-js (CDN).
+   Toutes les données transitent par Supabase (Auth + Postgres/RLS) :
+   voir supabase/schema.sql pour le modèle complet.
    ============================================================ */
 
 (function () {
   "use strict";
 
-  const STORAGE_KEY = "tmb_summerbook_v2";
-  const DAY_LABELS_ORDER = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
-
-  /* ---------- Icônes (SVG inline, currentColor) ---------- */
-  const ICONS = {
-    home: '<path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9"/>',
-    calendar: '<rect x="3.5" y="5.5" width="17" height="15" rx="2.5"/><path d="M8 3.5v4M16 3.5v4M3.5 10h17"/>',
-    chart: '<path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>',
-    document: '<path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4"/><path d="M8.5 12.5h7M8.5 15.5h7M8.5 18h4"/>',
-    help: '<circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.6 2.6 0 1 1 3.9 2.3c-.9.6-1.3 1-1.3 2"/><path d="M12 17h.01"/>',
-    chevronRight: '<path d="M9 6l6 6-6 6"/>',
-    chevronLeft: '<path d="M15 6l-6 6 6 6"/>',
-    check: '<path d="M5 13l4 4L19 7"/>',
-    play: '<path d="M7 4.5v15l13-7.5-13-7.5Z"/>',
-    dumbbell: '<path d="M6.5 8.5v7M4 10v4M17.5 8.5v7M20 10v4M8 12h8"/>',
-    bolt: '<path d="M13 3 5 13.5h5.5L11 21l8-11h-5.5L13 3Z"/>',
-    shield: '<path d="M12 3.5 19 6v6c0 5-3 8-7 9-4-1-7-4-7-9V6l7-2.5Z"/>',
-    leaf: '<path d="M6 18c8 1 12-3 12-12-9 0-12 4-12 12Z"/><path d="M6 18c1-4 3-7 8-9.5"/>',
-    heart: '<path d="M12 20.5s-7.5-4.6-9.7-9.3C.7 7.6 2.7 4 6.3 4c2 0 3.5 1 5.7 3.3C14.2 5 15.7 4 17.7 4c3.6 0 5.6 3.6 4 7.2C19.5 15.9 12 20.5 12 20.5Z"/>',
-    moon: '<path d="M20 14.2A8.5 8.5 0 1 1 9.8 4a7 7 0 0 0 10.2 10.2Z"/>',
-    droplet: '<path d="M12 3.5s6.5 7 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10.5 12 3.5 12 3.5Z"/>',
-    ban: '<circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/>',
-    trophy: '<path d="M8 4.5h8v5a4 4 0 0 1-8 0v-5Z"/><path d="M8 6H5.5a2 2 0 0 0-2 2c0 2 1.5 3.5 4 3.5M16 6h2.5a2 2 0 0 1 2 2c0 2-1.5 3.5-4 3.5"/><path d="M12 13.5V17M9 20.5h6M9.5 20.5V18h5v2.5"/>',
-    basketball: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18M5.5 5.5c2.5 2.2 3.8 4.3 3.8 6.5s-1.3 4.3-3.8 6.5M18.5 5.5c-2.5 2.2-3.8 4.3-3.8 6.5s1.3 4.3 3.8 6.5"/>',
-    search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
-    reset: '<path d="M4 12a8 8 0 1 1 2.6 5.9"/><path d="M4 17v-4h4"/>',
-    sun: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2.5 12H5M19 12h2.5M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>'
-  };
-  function icon(name, size) {
-    size = size || 20;
-    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ""}</svg>`;
-  }
-  const FAM_ICON = { legs: "dumbbell", upper: "dumbbell", core: "shield", speed: "bolt", mobility: "leaf" };
-
-  /* ---------- State ---------- */
-  let state = {
-    category: "u1315",
-    weekIndex: 0,
-    theme: "light",
-    progress: {}
-  };
-
-  function load() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        state.category = parsed.category || "u1315";
-        state.weekIndex = typeof parsed.weekIndex === "number" ? parsed.weekIndex : 0;
-        state.theme = parsed.theme === "dark" ? "dark" : "light";
-        state.progress = parsed.progress || {};
-      }
-    } catch (e) { /* ignore corrupt storage */ }
-  }
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      category: state.category,
-      weekIndex: state.weekIndex,
-      theme: state.theme,
-      progress: state.progress
-    }));
-    scheduleCloudSync();
+  if (typeof window.supabase === "undefined" || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    document.body.innerHTML = '<div class="boot-error">Configuration Supabase manquante (assets/supabase-config.js).</div>';
+    return;
   }
 
-  let cloudSyncTimer = null;
-  function scheduleCloudSync() {
-    if (typeof TMBCloud === "undefined" || !TMBCloud.getSession()) return;
-    clearTimeout(cloudSyncTimer);
-    cloudSyncTimer = setTimeout(() => {
-      TMBCloud.saveState(state.category, state.weekIndex, state.theme, state.progress).catch(() => {});
-    }, 800);
-  }
-  function applyTheme() {
-    document.documentElement.setAttribute("data-theme", state.theme);
-  }
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  /* ---------- Schedule / blocks (identique à la logique précédente) ---------- */
-  function resolveDay(week, dayIndex) {
-    const entry = week.schedule[dayIndex];
-    const raw = entry[state.category];
-    if (raw.charAt(0) === "@") {
-      const label = raw.slice(1);
-      if (label === "Repos") return { kind: "rest", label: "Repos" };
-      return { kind: "single", label };
-    }
-    const mod = week.modules[raw];
-    return { kind: mod.type, code: raw, module: mod, label: mod.title };
-  }
-
-  function getBlocks(resolved) {
-    if (resolved.kind === "rest") return [];
-    const m = resolved.module;
-    if (resolved.kind === "exercises") {
-      const blocks = [];
-      if (m.echauffement && m.echauffement.length) {
-        blocks.push({ key: "warmup", label: "Échauffement", hasValue: false, items: m.echauffement.map((t) => ({ nom: t })) });
-      }
-      blocks.push({ key: "main", label: m.echauffement ? "Exercices" : null, hasValue: true, items: m.exercises });
-      return blocks;
-    }
-    if (resolved.kind === "checklist") return [{ key: "main", label: null, hasValue: false, items: m.items }];
-    if (resolved.kind === "cardio") return [{ key: "main", label: null, hasValue: false, items: [{ nom: "Séance réalisée" }] }];
-    if (resolved.kind === "single") return [{ key: "main", label: null, hasValue: false, items: [{ nom: "Fait" }] }];
-    return [];
-  }
-
-  function blockKey(weekId, dayIndex, block) { return `w${weekId}_d${dayIndex}_${state.category}_${block.key}`; }
-  function defiKey(weekId) { return `defi_w${weekId}`; }
-
-  function getChecks(key, count) {
-    const arr = state.progress[key];
-    if (Array.isArray(arr) && arr.length === count) return arr;
-    return new Array(count).fill(false);
-  }
-  function toggleCheck(key, count, idx) {
-    const arr = getChecks(key, count).slice();
-    arr[idx] = !arr[idx];
-    state.progress[key] = arr;
-    save();
-  }
-  function resetKeys(keys) {
-    keys.forEach(({ key, count }) => { state.progress[key] = new Array(count).fill(false); });
-    save();
-  }
-
-  function dayStats(week, dayIndex) {
-    const resolved = resolveDay(week, dayIndex);
-    if (resolved.kind === "rest") return { total: 0, done: 0, resolved, blocks: [] };
-    const blocks = getBlocks(resolved);
-    let total = 0, done = 0;
-    blocks.forEach((b) => {
-      const checks = getChecks(blockKey(week.id, dayIndex, b), b.items.length);
-      total += b.items.length;
-      done += checks.filter(Boolean).length;
-    });
-    return { total, done, resolved, blocks };
-  }
-  function weekStats(week) {
-    let total = 0, done = 0;
-    for (let d = 0; d < 7; d++) { const s = dayStats(week, d); total += s.total; done += s.done; }
-    return { total, done, pct: total ? Math.round((done / total) * 100) : 0 };
-  }
-  function programStats() {
-    let total = 0, done = 0;
-    const perWeek = WEEKS.map((w) => { const s = weekStats(w); total += s.total; done += s.done; return s; });
-    return { total, done, pct: total ? Math.round((done / total) * 100) : 0, perWeek };
-  }
-  function todayDayIndex() {
-    const jsDay = new Date().getDay();
-    return jsDay === 0 ? 6 : jsDay - 1;
-  }
-  function findWeek(weekId) { return WEEKS.find((w) => w.id === weekId); }
-  function currentCategory() { return CATEGORIES.find((c) => c.key === state.category); }
-
-  /* ---------- Helpers rendu ---------- */
+  /* ---------------- Helpers DOM ---------------- */
+  const $ = (sel, scope) => (scope || document).querySelector(sel);
+  const $$ = (sel, scope) => Array.from((scope || document).querySelectorAll(sel));
   function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    return String(str == null ? "" : str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
-  function famBadge(family, size) {
-    const fam = FAMILIES[family];
-    if (!fam) return "";
-    return `<span class="li-icon fam-${family}" style="width:${size}px;height:${size}px">${icon(FAM_ICON[family] || "dumbbell", Math.round(size * 0.5))}</span>`;
+  function el(html) {
+    const t = document.createElement("template");
+    t.innerHTML = html.trim();
+    return t.content.firstElementChild;
+  }
+  let toastTimer = null;
+  function toast(message, isError) {
+    const box = $("#toast");
+    if (!box) return;
+    box.textContent = message;
+    box.classList.remove("hidden");
+    box.classList.toggle("toast-error", !!isError);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => box.classList.add("hidden"), 3800);
+  }
+  function ageFromBirthDate(birthDate) {
+    if (!birthDate) return null;
+    const d = new Date(birthDate);
+    if (isNaN(d.getTime())) return null;
+    const diff = Date.now() - d.getTime();
+    return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
+  }
+  function fullName(p) {
+    return [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email || "—";
+  }
+  const ROLE_LABELS = { admin: "Admin", coach: "Coach", player: "Joueur" };
+
+  /* ---------------- État global ---------------- */
+  let session = null;
+  let profile = null;
+  let categories = [];
+
+  /* ================================================================
+     AUTH
+     ================================================================ */
+  async function signUp({ email, password, firstName, lastName, birthDate }) {
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: { first_name: firstName, last_name: lastName, birth_date: birthDate } }
+    });
+    if (error) throw error;
+    return data;
+  }
+  async function signIn(email, password) {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
+  }
+  async function signOut() {
+    await sb.auth.signOut();
   }
 
-  /* ---------- Routeur ---------- */
-  function parseRoute() {
-    const hash = location.hash.replace(/^#\/?/, "");
-    if (!hash) return { name: "home", params: [] };
-    const parts = hash.split("/").filter((p) => p.length).map((p) => decodeURIComponent(p));
-    return { name: parts[0], params: parts.slice(1) };
+  /* Client Supabase isolé (session non persistée) utilisé uniquement pour
+     que l'admin puisse créer un compte joueur/coach sans remplacer sa
+     propre session (auth.signUp() connecte automatiquement le nouvel
+     utilisateur sur le client qui l'appelle). Voir README section
+     "Limitations connues". */
+  function adminCreateAccount({ email, password, firstName, lastName, birthDate }) {
+    const tmp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, storageKey: "tmb_tmp_invite" }
+    });
+    return tmp.auth.signUp({
+      email,
+      password,
+      options: { data: { first_name: firstName, last_name: lastName, birth_date: birthDate } }
+    }).then(({ data, error }) => {
+      if (error) throw error;
+      return data;
+    });
   }
-  function navigate(path) { location.hash = path; }
 
-  function render() {
-    const route = parseRoute();
-    const container = document.getElementById("pageContainer");
-    window.scrollTo(0, 0);
-    switch (route.name) {
-      case "programme": renderProgramme(container, route.params); break;
-      case "jour": renderJour(container, route.params); break;
-      case "exercice": renderExercice(container, route.params); break;
-      case "bibliotheque": renderBibliotheque(container, route.params); break;
-      case "documents": renderDocuments(container); break;
-      case "aide": renderAide(container); break;
-      case "progression": renderProgression(container); break;
-      case "compte": renderCompte(container); break;
-      default: renderHome(container); break;
+  /* ================================================================
+     DATA API
+     ================================================================ */
+  async function loadCategories() {
+    const { data, error } = await sb.from("tmb_categories").select("*").order("min_age");
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function loadUserProfile(userId) {
+    const { data, error } = await sb.from("tmb_profiles").select("*").eq("id", userId).maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  async function loadAllUsers() {
+    const { data, error } = await sb.from("tmb_profiles").select("*").order("last_name", { ascending: true, nullsFirst: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function updateUserRole(userId, newRole, categoryId) {
+    const { error } = await sb.from("tmb_profiles").update({ role: newRole, assigned_category_id: categoryId }).eq("id", userId);
+    if (error) throw error;
+  }
+
+  async function deleteUserProfile(userId) {
+    const { error } = await sb.from("tmb_profiles").delete().eq("id", userId);
+    if (error) throw error;
+  }
+
+  async function loadProgram(categoryId, weekNumber) {
+    const { data: plan, error: planErr } = await sb.from("tmb_training_plans")
+      .select("*").eq("category_id", categoryId).eq("week_number", weekNumber).maybeSingle();
+    if (planErr) throw planErr;
+    if (!plan) return { plan: null, exercises: [] };
+    const { data: exercises, error: exErr } = await sb.from("tmb_exercises")
+      .select("*").eq("plan_id", plan.id).order("position", { ascending: true });
+    if (exErr) throw exErr;
+    return { plan, exercises: exercises || [] };
+  }
+
+  async function ensurePlan(categoryId, weekNumber) {
+    const { data, error } = await sb.from("tmb_training_plans")
+      .upsert({ category_id: categoryId, week_number: weekNumber }, { onConflict: "category_id,week_number" })
+      .select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function updatePlan(planId, fields) {
+    const { error } = await sb.from("tmb_training_plans").update(fields).eq("id", planId);
+    if (error) throw error;
+  }
+
+  async function updateExercise(exerciseId, data) {
+    const { error } = await sb.from("tmb_exercises").update(data).eq("id", exerciseId);
+    if (error) throw error;
+  }
+
+  async function addExercise(planId, data) {
+    const { data: row, error } = await sb.from("tmb_exercises").insert({ plan_id: planId, ...data }).select().single();
+    if (error) throw error;
+    return row;
+  }
+
+  async function deleteExercise(exerciseId) {
+    const { error } = await sb.from("tmb_exercises").delete().eq("id", exerciseId);
+    if (error) throw error;
+  }
+
+  async function loadValidations(playerId, exerciseIds) {
+    if (!exerciseIds.length) return {};
+    const { data, error } = await sb.from("tmb_player_validations")
+      .select("*").eq("player_id", playerId).in("exercise_id", exerciseIds);
+    if (error) throw error;
+    const map = {};
+    (data || []).forEach((v) => { map[v.exercise_id] = v; });
+    return map;
+  }
+
+  async function toggleValidation(exerciseId, playerId, validated) {
+    const { error } = await sb.from("tmb_player_validations").upsert({
+      player_id: playerId,
+      exercise_id: exerciseId,
+      validated,
+      validation_date: validated ? new Date().toISOString() : null
+    }, { onConflict: "player_id,exercise_id" });
+    if (error) throw error;
+  }
+
+  /* ---------------- Seed (import des données par défaut) ---------------- */
+  async function seedDatabase(force) {
+    const { count, error: countErr } = await sb.from("tmb_categories").select("id", { count: "exact", head: true });
+    if (countErr) throw countErr;
+    if (count > 0 && !force) return { seeded: false, reason: "already-populated" };
+
+    const res = await fetch("assets/default_program.json");
+    if (!res.ok) throw new Error("Impossible de charger assets/default_program.json");
+    const data = await res.json();
+
+    for (const cat of data.categories) {
+      const { error } = await sb.from("tmb_categories").upsert(
+        { name: cat.name, min_age: cat.min_age, max_age: cat.max_age }, { onConflict: "name" }
+      );
+      if (error) throw error;
     }
-    renderBottomNav(route.name);
-  }
+    const { data: cats, error: catsErr } = await sb.from("tmb_categories").select("*");
+    if (catsErr) throw catsErr;
+    const catByName = Object.fromEntries(cats.map((c) => [c.name, c]));
 
-  /* ---------- Topbar / Bottom nav ---------- */
-  function renderBottomNav(routeName) {
-    const navMap = [
-      { route: "home", label: "Accueil", icon: "home" },
-      { route: "programme", label: "Programme", icon: "calendar" },
-      { route: "progression", label: "Progression", icon: "chart" },
-      { route: "documents", label: "Documents", icon: "document" }
-    ];
-    const activeRoute = ["jour", "exercice"].includes(routeName) ? "programme"
-      : routeName === "bibliotheque" ? "programme"
-      : ["aide", "compte"].includes(routeName) ? "" : routeName;
-    const nav = document.getElementById("bottomNav");
-    nav.innerHTML = navMap.map((n) => `
-      <button class="nav-tab ${activeRoute === n.route ? "active" : ""}" data-nav="${n.route}">
-        ${icon(n.icon, 21)}
-        <span class="nt-label">${n.label}</span>
-      </button>`).join("");
-    nav.querySelectorAll("[data-nav]").forEach((btn) => {
-      btn.addEventListener("click", () => navigate("/" + btn.dataset.nav));
-    });
-  }
+    for (const week of data.weeks) {
+      for (const catName of Object.keys(week.exercises)) {
+        const cat = catByName[catName];
+        if (!cat) continue;
+        const rpe = (week.rpe && week.rpe[catName]) || null;
+        const { data: plan, error: planErr } = await sb.from("tmb_training_plans")
+          .upsert({
+            category_id: cat.id, week_number: week.week,
+            objective: week.objective, warmup: week.warmup, rpe
+          }, { onConflict: "category_id,week_number" })
+          .select().single();
+        if (planErr) throw planErr;
 
-  /* ---------- Page: Accueil ---------- */
-  function renderHome(container) {
-    const cat = currentCategory();
-    container.innerHTML = `
-      <div class="page">
-        <div class="hero">
-          ${icon("basketball", 160).replace("<svg", '<svg class="ball-deco"')}
-          <div class="kicker">${escapeHtml(INTRO.kicker)} · ${escapeHtml(INTRO.season)}</div>
-          <h1>${escapeHtml(INTRO.lead).split("\n").join("<br>")}</h1>
-          <p>${escapeHtml(INTRO.body)}</p>
-          <div class="motto">${escapeHtml(INTRO.motto)}</div>
-        </div>
+        const { error: delErr } = await sb.from("tmb_exercises").delete().eq("plan_id", plan.id);
+        if (delErr) throw delErr;
 
-        <div class="section-title">Objectifs de la préparation</div>
-        <div class="goal-grid">
-          ${INTRO.goals.map((g) => `<div class="goal-chip">${icon("check", 16)}<span>${escapeHtml(g)}</span></div>`).join("")}
-        </div>
-
-        <div class="section-title">Explorer</div>
-        <div class="quick-grid">
-          <button class="quick-card" data-nav="/programme">
-            <span class="qc-icon fam-legs">${icon("calendar", 21)}</span>
-            <div class="qc-title">Programme</div>
-            <div class="qc-sub">Les 5 semaines détaillées</div>
-          </button>
-          <button class="quick-card" data-nav="/bibliotheque">
-            <span class="qc-icon fam-upper">${icon("dumbbell", 21)}</span>
-            <div class="qc-title">Bibliothèque</div>
-            <div class="qc-sub">Fiches exercices</div>
-          </button>
-          <button class="quick-card" data-nav="/documents">
-            <span class="qc-icon fam-speed">${icon("document", 21)}</span>
-            <div class="qc-title">Documents</div>
-            <div class="qc-sub">Le Summer Book en PDF</div>
-          </button>
-          <button class="quick-card" data-nav="/progression">
-            <span class="qc-icon fam-mobility">${icon("chart", 21)}</span>
-            <div class="qc-title">Progression</div>
-            <div class="qc-sub">Ton suivi complet</div>
-          </button>
-        </div>
-
-        <div class="section-title">Règles d'or</div>
-        <div class="golden-rules">
-          ${[["moon", GOLDEN_RULES[0]], ["droplet", GOLDEN_RULES[1]], ["ban", GOLDEN_RULES[2]]].map(([ic, txt]) =>
-            `<div class="rule-chip"><span class="ri">${icon(ic, 20)}</span><span>${escapeHtml(txt)}</span></div>`).join("")}
-        </div>
-
-        <div class="section-title">Ta catégorie</div>
-        <div class="cat-selector" id="categorySelector"></div>
-
-        <div class="outro-card">
-          <div class="outro-title">🏀 ${escapeHtml(OUTRO.title)} 🏀</div>
-          ${OUTRO.lines.map((l, i) => `<p class="${i === 0 ? "strong" : ""}">${escapeHtml(l)}</p>`).join("")}
-          <p class="chevalier-quote">« ${escapeHtml(CHEVALIER_QUOTE)} »</p>
-        </div>
-
-        <div class="theme-toggle-row">
-          <span class="ttl">${icon(state.theme === "dark" ? "basketball" : "sun", 18)} Thème ${state.theme === "dark" ? "rouge" : "clair"}</span>
-          <span class="theme-switch ${state.theme === "dark" ? "on" : ""}" id="themeSwitch">
-            <span class="knob">${icon(state.theme === "dark" ? "basketball" : "sun", 13)}</span>
-          </span>
-        </div>
-
-        <div class="descodes-footer">
-          <a href="https://descodes.com" target="_blank" rel="noopener">
-            <span>Site réalisé par</span><span class="code-icon">&lt;/&gt;</span>
-            <span class="brand-name"><span class="brand-des">DES</span><span class="brand-codes">CODES</span></span>
-          </a>
-        </div>
-      </div>
-    `;
-    renderCategorySelector(container.querySelector("#categorySelector"));
-    container.querySelectorAll("[data-nav]").forEach((btn) => btn.addEventListener("click", () => navigate(btn.dataset.nav)));
-    container.querySelector("#themeSwitch").addEventListener("click", () => {
-      state.theme = state.theme === "dark" ? "light" : "dark";
-      save();
-      applyTheme();
-      render();
-    });
-  }
-
-  function renderCategorySelector(mount) {
-    if (!mount) return;
-    mount.innerHTML = CATEGORIES.map((cat) => {
-      const active = cat.key === state.category;
-      return `
-        <button class="cat-card ${active ? "active" : ""}" data-cat="${cat.key}" style="--cat-color:${cat.color}">
-          <div class="cat-card-top">
-            <span class="cat-dot" style="background:${cat.color}"></span>
-            <span class="cat-name">${escapeHtml(cat.label)}${cat.sub ? `<small>${escapeHtml(cat.sub)}</small>` : ""}</span>
-            ${active ? `<span class="cat-check">${icon("check", 18)}</span>` : ""}
-          </div>
-          <div class="cat-tagline">${escapeHtml(cat.tagline)}</div>
-          <div class="cat-meta"><span>${escapeHtml(cat.freq)}</span><span>RPE ${escapeHtml(cat.rpe)}</span></div>
-        </button>`;
-    }).join("");
-    mount.querySelectorAll("[data-cat]").forEach((btn) => {
-      btn.addEventListener("click", () => { state.category = btn.dataset.cat; save(); render(); });
-    });
-  }
-
-  /* ---------- Page: Programme ---------- */
-  function renderProgramme(container, params) {
-    let weekIdx = state.weekIndex;
-    if (params[0]) { const n = parseInt(params[0], 10) - 1; if (n >= 0 && n < WEEKS.length) weekIdx = n; }
-    state.weekIndex = weekIdx;
-    save();
-    const week = WEEKS[weekIdx];
-    const s = weekStats(week);
-
-    container.innerHTML = `
-      <div class="page">
-        <div class="page-eyebrow">Programme · ${escapeHtml(currentCategory().label)}</div>
-        <div class="page-title">Les 5 semaines</div>
-        <div class="week-tabs" id="weekTabs"></div>
-
-        <div class="week-header-card">
-          <div class="week-header-top"><h2>${escapeHtml(week.title)}</h2><span class="week-pct">${s.pct}%</span></div>
-          <div class="week-progress-bar"><div class="fill" style="width:${s.pct}%"></div></div>
-          <p class="week-objectif">${escapeHtml(week.objectif)}</p>
-          <div class="staff-quote"><span class="staff-label">Le mot du staff</span><p>${escapeHtml(week.staffQuote)}</p></div>
-        </div>
-
-        <div class="section-title">Jours de la semaine</div>
-        <div class="days-wrap" id="daysWrap"></div>
-
-        <div id="defiWrap"></div>
-      </div>
-    `;
-
-    const tabs = container.querySelector("#weekTabs");
-    tabs.innerHTML = WEEKS.map((w, i) => `<button class="week-tab ${i === weekIdx ? "active" : ""}" data-w="${i + 1}">S${i + 1}</button>`).join("");
-    tabs.querySelectorAll("[data-w]").forEach((btn) => btn.addEventListener("click", () => navigate("/programme/" + btn.dataset.w)));
-
-    const daysWrap = container.querySelector("#daysWrap");
-    for (let d = 0; d < 7; d++) daysWrap.appendChild(buildDayCard(week, d));
-
-    if (week.defi) {
-      const dKey = defiKey(week.id);
-      const checks = getChecks(dKey, week.defi.items.length);
-      const wrap = container.querySelector("#defiWrap");
-      wrap.innerHTML = `
-        <div class="section-title">Défi de la semaine</div>
-        <div class="defi-card">
-          <div class="defi-title">${icon("trophy", 22)} ${escapeHtml(week.defi.title)}</div>
-          <div class="exercise-list">
-            ${week.defi.items.map((item, idx) => `
-              <label class="exercise-row ${checks[idx] ? "checked" : ""}">
-                <input type="checkbox" data-key="${dKey}" data-count="${week.defi.items.length}" data-idx="${idx}" ${checks[idx] ? "checked" : ""}>
-                <span class="exercise-name">${escapeHtml(item)}</span>
-              </label>`).join("")}
-          </div>
-        </div>`;
-      bindCheckboxes(wrap);
-    }
-  }
-
-  function buildDayCard(week, dayIndex) {
-    const dayName = DAY_LABELS_ORDER[dayIndex];
-    const resolved = resolveDay(week, dayIndex);
-    const stats = dayStats(week, dayIndex);
-    const isToday = dayIndex === todayDayIndex();
-    const isRest = resolved.kind === "rest";
-    const isDone = !isRest && stats.total > 0 && stats.done === stats.total;
-
-    const card = document.createElement(isRest ? "div" : "button");
-    card.className = "day-card" + (isRest ? " rest" : "") + (isToday ? " today" : "");
-    if (!isRest) card.style.textAlign = "left";
-    if (!isRest) card.style.font = "inherit";
-    if (!isRest) card.style.width = "100%";
-    if (!isRest) card.style.border = "1px solid var(--border)";
-
-    const famKey = isRest ? "rest" : (resolved.kind === "cardio" ? "cardio" : (resolved.module && resolved.module.exercises ? familyOfModule(resolved.module) : "mobility"));
-
-    let statusHtml;
-    if (isRest) statusHtml = `<span class="status-pill rest">Repos</span>`;
-    else if (isDone) statusHtml = `<span class="status-pill done">${icon("check", 12)} Fait</span>`;
-    else if (stats.done > 0) statusHtml = `<span class="status-pill partial">${stats.done}/${stats.total}</span>`;
-    else statusHtml = `<span class="status-pill todo">À faire</span>`;
-
-    card.innerHTML = `
-      <div class="day-card-inner">
-        <span class="day-icon fam-${famKey}">${icon(isRest ? "moon" : (FAM_ICON[famKey] || "calendar"), 22)}</span>
-        <div class="day-info">
-          <div class="day-name">${dayName}${isToday ? '<span class="today-badge">Aujourd\'hui</span>' : ""}</div>
-          <div class="day-session">${escapeHtml(resolved.label)}</div>
-        </div>
-        <div class="day-right">
-          ${statusHtml}
-          ${!isRest ? icon("chevronRight", 18).replace("<svg", '<svg class="chev"') : ""}
-        </div>
-      </div>`;
-    if (!isRest) card.addEventListener("click", () => navigate(`/jour/${week.id}/${dayIndex}`));
-    return card;
-  }
-
-  function familyOfModule(module) {
-    if (!module.exercises || !module.exercises.length) return "mobility";
-    const info = getExerciseInfo(module.exercises[0].nom);
-    return info ? info.family : "legs";
-  }
-
-  /* ---------- Page: Jour ---------- */
-  function renderJour(container, params) {
-    const weekId = parseInt(params[0], 10);
-    const dayIndex = parseInt(params[1], 10);
-    const week = findWeek(weekId);
-    if (!week || isNaN(dayIndex)) { renderNotFound(container, "/programme"); return; }
-    const resolved = resolveDay(week, dayIndex);
-    if (resolved.kind === "rest") { navigate(`/programme/${weekId}`); return; }
-    const m = resolved.module;
-    const blocks = getBlocks(resolved);
-
-    let bodyHtml = "";
-    if (m.objectif) bodyHtml += `<p class="module-objectif">${escapeHtml(m.objectif)}</p>`;
-    if (m.rpe) bodyHtml += `<div class="rpe-row"><span class="rpe-label">RPE</span><span class="rpe-pill" style="--c:${currentCategory().color}">${m.rpe[state.category]}</span></div>`;
-    if (m.durations) bodyHtml += `<div class="duration-chip" style="--c:${currentCategory().color}">${escapeHtml(m.durations[state.category])}</div>`;
-    if (m.duration) bodyHtml += `<div class="duration-chip">${escapeHtml(m.duration)}</div>`;
-    if (m.options && m.options[state.category]) bodyHtml += `<ul class="plain-list options-list">${m.options[state.category].map((o) => `<li>${escapeHtml(o)}</li>`).join("")}</ul>`;
-    if (m.note) bodyHtml += `<p class="module-note">${escapeHtml(m.note)}</p>`;
-
-    container.innerHTML = `
-      <div class="page">
-        <button class="back-link" id="backBtn">${icon("chevronLeft", 16)} Semaine ${week.id}</button>
-        <div class="page-eyebrow">${DAY_LABELS_ORDER[dayIndex]}</div>
-        <div class="page-title">${escapeHtml(m.title)}</div>
-        <div class="info-card">${bodyHtml}</div>
-        <div id="blocksWrap"></div>
-      </div>
-    `;
-    container.querySelector("#backBtn").addEventListener("click", () => navigate(`/programme/${week.id}`));
-
-    const blocksWrap = container.querySelector("#blocksWrap");
-    blocks.forEach((b) => {
-      const key = blockKey(week.id, dayIndex, b);
-      const checks = getChecks(key, b.items.length);
-      const section = document.createElement("div");
-      if (b.label) section.innerHTML += `<div class="block-label">${escapeHtml(b.label)}</div>`;
-      const list = document.createElement("div");
-      list.className = "exercise-list";
-      b.items.forEach((item, idx) => {
-        const checked = checks[idx];
-        const row = document.createElement("label");
-        row.className = "exercise-row" + (checked ? " checked" : "");
-        const valHtml = b.hasValue ? `<span class="exercise-val">${escapeHtml(item[state.category])}</span>` : "";
-        row.innerHTML = `
-          <input type="checkbox" data-key="${key}" data-count="${b.items.length}" data-idx="${idx}" ${checked ? "checked" : ""}>
-          <span class="exercise-name">${escapeHtml(item.nom)}</span>
-          ${valHtml}
-          <a class="info-link" href="#/exercice/${week.id}/${dayIndex}/${b.key}/${idx}">${icon("chevronRight", 16)}</a>
-        `;
-        row.querySelector('input[type="checkbox"]').addEventListener("change", (e) => {
-          toggleCheck(key, b.items.length, idx);
-          row.classList.toggle("checked", e.target.checked);
-        });
-        row.querySelector(".info-link").addEventListener("click", (e) => { e.preventDefault(); navigate(`/exercice/${week.id}/${dayIndex}/${b.key}/${idx}`); });
-        list.appendChild(row);
-      });
-      section.appendChild(list);
-      blocksWrap.appendChild(section);
-    });
-
-    const resetBtn = document.createElement("button");
-    resetBtn.className = "btn-reset-day";
-    resetBtn.textContent = "Réinitialiser ce jour";
-    resetBtn.addEventListener("click", () => {
-      resetKeys(blocks.map((b) => ({ key: blockKey(week.id, dayIndex, b), count: b.items.length })));
-      render();
-    });
-    blocksWrap.appendChild(resetBtn);
-  }
-
-  /* ---------- Page: Exercice (fiche + validation) ---------- */
-  function renderExercice(container, params) {
-    const weekId = parseInt(params[0], 10);
-    const dayIndex = parseInt(params[1], 10);
-    const bKey = params[2];
-    const idx = parseInt(params[3], 10);
-    const week = findWeek(weekId);
-    if (!week) { renderNotFound(container, "/programme"); return; }
-    const resolved = resolveDay(week, dayIndex);
-    const blocks = getBlocks(resolved);
-    const block = blocks.find((b) => b.key === bKey);
-    const item = block && block.items[idx];
-    if (!block || !item) { renderNotFound(container, `/jour/${weekId}/${dayIndex}`); return; }
-
-    const info = getExerciseInfo(item.nom);
-    const family = info ? info.family : "mobility";
-    const famColors = { legs: "#e0402a", upper: "#2f6fed", core: "#4c4fc4", speed: "#c76b12", mobility: "#1f9d55" };
-    const key = blockKey(week.id, dayIndex, block);
-    const checked = getChecks(key, block.items.length)[idx];
-
-    container.innerHTML = `
-      <div class="page">
-        <button class="back-link" id="backBtn">${icon("chevronLeft", 16)} ${DAY_LABELS_ORDER[dayIndex]} — ${escapeHtml(resolved.label)}</button>
-
-        <div class="exo-hero" style="background:linear-gradient(135deg, ${famColors[family]}, #16233f)">
-          <div class="exo-icon">${icon(FAM_ICON[family] || "dumbbell", 32)}</div>
-          <h1>${escapeHtml(item.nom)}</h1>
-          <div class="exo-family">${escapeHtml((FAMILIES[family] || {}).label || "Exercice")}</div>
-        </div>
-
-        ${block.hasValue ? `
-        <div class="exo-value-card">
-          <div class="lbl">Consigne pour ${escapeHtml(currentCategory().label)}</div>
-          <div class="val">${escapeHtml(item[state.category])}</div>
-        </div>` : ""}
-
-        <div class="exo-desc">
-          <span class="lbl">Comment faire</span>
-          ${info ? escapeHtml(info.desc) : "Suis les consignes du staff pour cet exercice, en priorisant toujours la qualité d'exécution."}
-        </div>
-
-        ${item.video ? `<a class="btn-video" href="${item.video}" target="_blank" rel="noopener">${icon("play", 18)} Voir la vidéo de démonstration</a>` : ""}
-
-        <button class="btn-validate ${checked ? "is-done" : ""}" id="validateBtn">
-          ${icon("check", 18)} ${checked ? "Validé" : "Marquer comme fait"}
-        </button>
-      </div>
-    `;
-    container.querySelector("#backBtn").addEventListener("click", () => navigate(`/jour/${week.id}/${dayIndex}`));
-    container.querySelector("#validateBtn").addEventListener("click", () => {
-      toggleCheck(key, block.items.length, idx);
-      render();
-    });
-  }
-
-  function renderNotFound(container, backPath) {
-    container.innerHTML = `
-      <div class="page">
-        <div class="info-card" style="text-align:center">
-          <p class="module-objectif">Cette page n'existe pas (ou plus) pour ta catégorie actuelle.</p>
-          <button class="btn-validate" id="backHomeBtn">Retour</button>
-        </div>
-      </div>`;
-    container.querySelector("#backHomeBtn").addEventListener("click", () => navigate(backPath || "/"));
-  }
-
-  /* ---------- Page: Bibliothèque ---------- */
-  function renderBibliotheque(container, params) {
-    if (params[0]) { renderBibliothequeItem(container, params[0]); return; }
-    const families = Object.keys(FAMILIES);
-    container.innerHTML = `
-      <div class="page">
-        <div class="page-eyebrow">Bibliothèque</div>
-        <div class="page-title">Fiches exercices</div>
-        <p class="page-lead">Retrouve la technique et les vidéos de tous les exercices du programme.</p>
-        <div class="lib-filter" id="libFilter">
-          <button class="active" data-fam="all">Tous</button>
-          ${families.map((f) => `<button data-fam="${f}">${escapeHtml(FAMILIES[f].label)}</button>`).join("")}
-        </div>
-        <div class="lib-grid" id="libGrid"></div>
-      </div>
-    `;
-    const grid = container.querySelector("#libGrid");
-    function renderGrid(fam) {
-      const list = fam === "all" ? EXERCISE_LIBRARY : EXERCISE_LIBRARY.filter((e) => e.family === fam);
-      grid.innerHTML = list.map((e) => `
-        <button class="lib-card" data-key="${encodeURIComponent(e.key)}">
-          ${famBadge(e.family, 44)}
-          <div>
-            <div class="li-title">${escapeHtml(e.key)}</div>
-            <div class="li-fam">${escapeHtml(FAMILIES[e.family].label)}</div>
-          </div>
-        </button>`).join("");
-      grid.querySelectorAll("[data-key]").forEach((btn) => btn.addEventListener("click", () => navigate(`/bibliotheque/${btn.dataset.key}`)));
-    }
-    renderGrid("all");
-    container.querySelectorAll("#libFilter button").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        container.querySelectorAll("#libFilter button").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        renderGrid(btn.dataset.fam);
-      });
-    });
-  }
-
-  function renderBibliothequeItem(container, encodedKey) {
-    const key = decodeURIComponent(encodedKey);
-    const info = EXERCISE_LIBRARY.find((e) => e.key === key);
-    if (!info) { renderNotFound(container, "/bibliotheque"); return; }
-    const famColors = { legs: "#e0402a", upper: "#2f6fed", core: "#4c4fc4", speed: "#c76b12", mobility: "#1f9d55" };
-    const video = VIDEOS[key];
-
-    // Occurrences dans le programme pour la catégorie actuelle
-    const occurrences = [];
-    WEEKS.forEach((week) => {
-      for (let d = 0; d < 7; d++) {
-        const resolved = resolveDay(week, d);
-        if (resolved.kind === "rest") continue;
-        getBlocks(resolved).forEach((b) => {
-          b.items.forEach((item) => {
-            const i = getExerciseInfo(item.nom);
-            if (i && i.key === key) occurrences.push({ weekId: week.id, dayIndex: d });
-          });
-        });
-      }
-    });
-
-    container.innerHTML = `
-      <div class="page">
-        <button class="back-link" id="backBtn">${icon("chevronLeft", 16)} Bibliothèque</button>
-        <div class="exo-hero" style="background:linear-gradient(135deg, ${famColors[info.family]}, #16233f)">
-          <div class="exo-icon">${icon(FAM_ICON[info.family] || "dumbbell", 32)}</div>
-          <h1>${escapeHtml(info.key)}</h1>
-          <div class="exo-family">${escapeHtml(FAMILIES[info.family].label)}</div>
-        </div>
-        <div class="exo-desc"><span class="lbl">Comment faire</span>${escapeHtml(info.desc)}</div>
-        ${video ? `<a class="btn-video" href="${video}" target="_blank" rel="noopener">${icon("play", 18)} Voir la vidéo de démonstration</a>` : ""}
-        ${occurrences.length ? `
-          <div class="section-title">Dans le programme</div>
-          <div class="lib-filter" style="flex-wrap:wrap">
-            ${occurrences.map((o) => `<button data-w="${o.weekId}" data-d="${o.dayIndex}">S${o.weekId} · ${DAY_LABELS_ORDER[o.dayIndex]}</button>`).join("")}
-          </div>` : ""}
-      </div>
-    `;
-    container.querySelector("#backBtn").addEventListener("click", () => navigate("/bibliotheque"));
-    container.querySelectorAll("[data-w]").forEach((btn) => btn.addEventListener("click", () => navigate(`/jour/${btn.dataset.w}/${btn.dataset.d}`)));
-  }
-
-  /* ---------- Page: Documents ---------- */
-  function renderDocuments(container) {
-    const href = encodeURI(PDF_PATH);
-    container.innerHTML = `
-      <div class="page">
-        <div class="page-eyebrow">Documents</div>
-        <div class="page-title">Le Summer Book</div>
-        <p class="page-lead">Le document officiel complet, tel que distribué par le staff.</p>
-        <div class="pdf-card">
-          <div class="pi">${icon("document", 56)}</div>
-          <h3>Summer Book — Saison 2026-2027</h3>
-          <p>Programme complet, PDF original</p>
-          <a class="btn-open" href="${href}" target="_blank" rel="noopener">${icon("chevronRight", 16)} Ouvrir le PDF</a>
-        </div>
-        <div class="section-title">Sommaire</div>
-        <div class="lib-grid" id="docToc"></div>
-      </div>
-    `;
-    const toc = container.querySelector("#docToc");
-    toc.innerHTML = WEEKS.map((w) => `
-      <button class="lib-card" data-w="${w.id}">
-        ${famBadge("mobility", 44)}
-        <div><div class="li-title">${escapeHtml(w.title)}</div><div class="li-fam">${escapeHtml(w.objectif)}</div></div>
-      </button>`).join("");
-    toc.querySelectorAll("[data-w]").forEach((btn) => btn.addEventListener("click", () => navigate("/programme/" + btn.dataset.w)));
-  }
-
-  /* ---------- Page: Aide ---------- */
-  function renderAide(container) {
-    container.innerHTML = `
-      <div class="page">
-        <div class="page-eyebrow">Aide</div>
-        <div class="page-title">Comment utiliser l'app</div>
-
-        <div class="help-block">
-          <h3>${icon("check", 18)} Valider une séance</h3>
-          <p>Ouvre un jour dans le Programme, coche chaque élément (échauffement puis exercices) au fur et à mesure. Touche le nom d'un exercice pour ouvrir sa fiche complète (consigne, technique, vidéo).</p>
-        </div>
-
-        <div class="help-block">
-          <h3>${icon("dumbbell", 18)} Les catégories</h3>
-          <p><strong>U13/U15</strong> — construire les fondamentaux, 3 séances/semaine, priorité à la technique.</p>
-          <p><strong>U18</strong> — développer la performance, 4 séances/semaine, introduction à la force.</p>
-          <p><strong>NM3</strong> — optimiser la performance, 4 à 5 séances/semaine, travail individualisé.</p>
-        </div>
-
-        <div class="help-block">
-          <h3>${icon("bolt", 18)} Le RPE</h3>
-          <p>Le RPE (Rate of Perceived Exertion) mesure l'intensité ressentie de 1 à 10.</p>
-          <div class="rpe-scale">
-            <div class="rpe-scale-row"><span class="sw" style="background:#1f9d55"></span>5-6 : effort modéré, confortable</div>
-            <div class="rpe-scale-row"><span class="sw" style="background:#2f6fed"></span>7-8 : effort soutenu, exigeant</div>
-            <div class="rpe-scale-row"><span class="sw" style="background:#e0402a"></span>9 : quasi maximal</div>
-          </div>
-        </div>
-
-        <div class="help-block">
-          <h3>${icon("moon", 18)} Règles d'or</h3>
-          <ul>${GOLDEN_RULES.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>
-        </div>
-
-        <div class="help-block" style="text-align:center">
-          <h3 style="justify-content:center">Crédits</h3>
-          <p>Contenu du programme : staff TMB — Application : <a href="https://descodes.com" target="_blank" rel="noopener">DESCODES</a></p>
-        </div>
-      </div>
-    `;
-  }
-
-  /* ---------- Page: Progression ---------- */
-  function renderProgression(container) {
-    const stats = programStats();
-    container.innerHTML = `
-      <div class="page">
-        <div class="page-eyebrow">Progression · ${escapeHtml(currentCategory().label)}</div>
-        <div class="page-title">Ton suivi</div>
-
-        <div class="overview-card">
-          <div class="overview-top">
-            <div class="ring" style="--pct:${stats.pct}"><div class="ring-inner">${stats.pct}%</div></div>
-            <div class="overview-labels">
-              <div class="title">Programme complet</div>
-              <div class="sub">${stats.done} / ${stats.total} éléments validés</div>
-            </div>
-          </div>
-          <div class="week-dots" id="progWeekDots"></div>
-          <div class="heatmap" id="progHeatmap"></div>
-        </div>
-
-        <div class="reset-all-wrap">
-          <button class="btn-reset-all" id="resetAllBtn">${icon("reset", 14)} Réinitialiser toute la progression</button>
-        </div>
-      </div>
-    `;
-    const dots = container.querySelector("#progWeekDots");
-    dots.innerHTML = stats.perWeek.map((w, i) => `
-      <button class="week-dot ${w.pct === 100 ? "full" : w.pct > 0 ? "partial" : ""}" data-w="${i + 1}">S${i + 1}</button>`).join("");
-    dots.querySelectorAll("[data-w]").forEach((btn) => btn.addEventListener("click", () => navigate("/programme/" + btn.dataset.w)));
-
-    const heat = container.querySelector("#progHeatmap");
-    WEEKS.forEach((week) => {
-      const row = document.createElement("div");
-      row.className = "heat-row";
-      for (let d = 0; d < 7; d++) {
-        const s = dayStats(week, d);
-        const cell = document.createElement("div");
-        cell.className = "heat-cell";
-        if (s.resolved.kind === "rest") cell.classList.add("heat-rest");
-        else if (s.total === 0) cell.classList.add("heat-empty");
-        else {
-          const frac = s.done / s.total;
-          cell.classList.add(frac === 0 ? "heat-0" : frac < 1 ? "heat-partial" : "heat-full");
+        const rows = week.exercises[catName].map((e, i) => ({
+          plan_id: plan.id, name: e.name, sets: e.sets, duration: e.duration,
+          intensity: e.intensity, reps: e.reps, video_url: e.video_url, position: i
+        }));
+        if (rows.length) {
+          const { error: insErr } = await sb.from("tmb_exercises").insert(rows);
+          if (insErr) throw insErr;
         }
-        cell.title = `${DAY_LABELS_ORDER[d]} — S${week.id}`;
-        row.appendChild(cell);
       }
-      heat.appendChild(row);
-    });
-
-    container.querySelector("#resetAllBtn").addEventListener("click", () => {
-      if (!confirm("Réinitialiser toute la progression enregistrée sur cet appareil ?")) return;
-      state.progress = {};
-      save();
-      render();
-    });
+    }
+    return { seeded: true };
   }
 
-  /* ---------- Page: Mon compte (synchro cloud) ---------- */
-  function renderCompte(container) {
-    const hasCloud = typeof TMBCloud !== "undefined" && TMBCloud.available();
-    const session = hasCloud ? TMBCloud.getSession() : null;
+  /* ================================================================
+     NAVIGATION ENTRE VUES
+     ================================================================ */
+  function showView(name) {
+    ["auth", "admin", "coach", "player"].forEach((v) => {
+      $("#view-" + v).classList.toggle("hidden", v !== name);
+    });
+    $("#topbar").classList.toggle("hidden", name === "auth");
+  }
 
-    container.innerHTML = `
-      <div class="page">
-        <div class="page-eyebrow">Mon compte</div>
-        <div class="page-title">${session ? "Connecté" : "Se connecter"}</div>
-        <p class="page-lead">Connecte-toi pour retrouver ta progression sur n'importe quel appareil (téléphone, tablette...). Si l'identifiant n'existe pas encore, il est créé automatiquement.</p>
-        <div id="compteBody"></div>
+  function renderTopbar() {
+    if (!profile) return;
+    $("#topbarUserName").textContent = fullName(profile);
+    $("#topbarUserRole").textContent = ROLE_LABELS[profile.role] || profile.role;
+    $("#topbarUserRole").className = "role-badge role-" + profile.role;
+  }
+
+  /* ================================================================
+     VUE : AUTH (connexion / inscription)
+     ================================================================ */
+  let authMode = "login"; // "login" | "signup"
+  function renderAuthView() {
+    const root = $("#view-auth");
+    root.innerHTML = `
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <div class="auth-logo">🏀</div>
+          <h1>TMB Summer Book</h1>
+          <p class="auth-sub">Préparation physique estivale — 2026-2027</p>
+
+          <div class="auth-tabs">
+            <button class="auth-tab ${authMode === "login" ? "active" : ""}" data-mode="login">Connexion</button>
+            <button class="auth-tab ${authMode === "signup" ? "active" : ""}" data-mode="signup">Inscription</button>
+          </div>
+
+          <form id="authForm" class="auth-form" autocomplete="off">
+            ${authMode === "signup" ? `
+              <div class="field-row">
+                <div class="field">
+                  <label>Prénom</label>
+                  <input type="text" id="fFirstName" required>
+                </div>
+                <div class="field">
+                  <label>Nom</label>
+                  <input type="text" id="fLastName" required>
+                </div>
+              </div>
+              <div class="field">
+                <label>Date de naissance</label>
+                <input type="date" id="fBirthDate" required>
+              </div>
+            ` : ""}
+            <div class="field">
+              <label>Email</label>
+              <input type="email" id="fEmail" required>
+            </div>
+            <div class="field">
+              <label>Mot de passe</label>
+              <input type="password" id="fPassword" minlength="6" required>
+            </div>
+            <div class="form-error" id="authError"></div>
+            <button type="submit" class="btn-primary btn-block" id="authSubmit">
+              ${authMode === "signup" ? "Créer mon compte" : "Se connecter"}
+            </button>
+          </form>
+          ${authMode === "signup" ? `<p class="auth-hint">Ta catégorie (U13/U15/U18/NM3) est déduite automatiquement de ta date de naissance.</p>` : ""}
+        </div>
       </div>
     `;
-    const body = container.querySelector("#compteBody");
-
-    if (!hasCloud) {
-      body.innerHTML = `<div class="info-card"><p class="module-objectif">La synchronisation en ligne n'est pas disponible pour le moment. Ta progression reste sauvegardée sur cet appareil.</p></div>`;
-      return;
-    }
-
-    if (session) {
-      body.innerHTML = `
-        <div class="info-card" style="text-align:center">
-          <span class="sync-badge">${icon("check", 14)} Synchronisé</span>
-          <p class="module-objectif" style="margin-top:10px">Connecté en tant que <strong>${escapeHtml(session.username)}</strong>.</p>
-          <button class="btn-validate" id="logoutBtn" style="background:var(--red)">Se déconnecter</button>
-        </div>`;
-      body.querySelector("#logoutBtn").addEventListener("click", () => {
-        TMBCloud.clearSession();
-        render();
-      });
-      return;
-    }
-
-    body.innerHTML = `
-      <div class="info-card">
-        <div class="form-field">
-          <label>Identifiant</label>
-          <input type="text" id="loginUser" placeholder="ex: Lucas.T" autocomplete="off" autocapitalize="off">
-        </div>
-        <div class="form-field">
-          <label>Mot de passe</label>
-          <input type="text" id="loginPass" placeholder="ex: basket26" autocomplete="off" autocapitalize="off">
-        </div>
-        <div class="form-error" id="loginError"></div>
-        <button class="btn-validate" id="loginBtn">Se connecter</button>
-      </div>`;
-
-    const userInput = body.querySelector("#loginUser");
-    const passInput = body.querySelector("#loginPass");
-    const errEl = body.querySelector("#loginError");
-    const btn = body.querySelector("#loginBtn");
-
-    async function doLogin() {
-      const u = userInput.value.trim();
-      const p = passInput.value;
+    $$(".auth-tab", root).forEach((btn) => btn.addEventListener("click", () => { authMode = btn.dataset.mode; renderAuthView(); }));
+    $("#authForm", root).addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errEl = $("#authError", root);
+      const submitBtn = $("#authSubmit", root);
       errEl.textContent = "";
-      if (!u || p.length < 3) {
-        errEl.textContent = "Identifiant requis, mot de passe : 3 caractères minimum.";
+      submitBtn.disabled = true;
+      const email = $("#fEmail", root).value.trim();
+      const password = $("#fPassword", root).value;
+      try {
+        if (authMode === "signup") {
+          await signUp({
+            email, password,
+            firstName: $("#fFirstName", root).value.trim(),
+            lastName: $("#fLastName", root).value.trim(),
+            birthDate: $("#fBirthDate", root).value
+          });
+          toast("Compte créé. Si la confirmation par e-mail est activée, vérifie ta boîte mail avant de te connecter.");
+          authMode = "login";
+          renderAuthView();
+        } else {
+          await signIn(email, password);
+        }
+      } catch (err) {
+        errEl.textContent = translateAuthError(err);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+  function translateAuthError(err) {
+    const msg = String((err && err.message) || err);
+    if (/already registered|already exists/i.test(msg)) return "Un compte existe déjà avec cet email.";
+    if (/invalid login credentials/i.test(msg)) return "Email ou mot de passe incorrect.";
+    if (/password/i.test(msg) && /short|least/i.test(msg)) return "Mot de passe trop court (6 caractères minimum).";
+    return msg || "Une erreur est survenue.";
+  }
+
+  /* ================================================================
+     COMPOSANT PARTAGÉ : ÉDITEUR DE PROGRAMME (admin + coach)
+     ================================================================ */
+  function exerciseCardTemplate(ex, idx) {
+    return `
+      <div class="exo-edit-card" data-idx="${idx}" data-id="${ex.id || ""}">
+        <div class="field-row">
+          <div class="field field-grow">
+            <label>Nom de l'exercice</label>
+            <input type="text" data-f="name" value="${escapeHtml(ex.name || "")}" placeholder="ex: Goblet Squat">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>🔄 Séries</label>
+            <input type="number" min="0" data-f="sets" value="${ex.sets ?? ""}">
+          </div>
+          <div class="field">
+            <label>⏱️ Durée (sec)</label>
+            <input type="number" min="0" data-f="duration" value="${ex.duration ?? ""}">
+          </div>
+          <div class="field">
+            <label>💪 Intensité (1-10)</label>
+            <input type="number" min="1" max="10" data-f="intensity" value="${ex.intensity ?? ""}">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field field-grow">
+            <label>Consigne (séries x reps, texte libre)</label>
+            <input type="text" data-f="reps" value="${escapeHtml(ex.reps || "")}" placeholder="ex: 3 X 10">
+          </div>
+        </div>
+        <button type="button" class="btn-danger-ghost btn-del-exo">🗑️ Supprimer</button>
+      </div>
+    `;
+  }
+
+  function readExerciseCard(cardEl) {
+    return {
+      name: $('[data-f="name"]', cardEl).value.trim(),
+      sets: numOrNull($('[data-f="sets"]', cardEl).value),
+      duration: numOrNull($('[data-f="duration"]', cardEl).value),
+      intensity: numOrNull($('[data-f="intensity"]', cardEl).value),
+      reps: $('[data-f="reps"]', cardEl).value.trim() || null
+    };
+  }
+  function numOrNull(v) { return v === "" || v == null ? null : Number(v); }
+
+  /* Monte l'éditeur de programme dans `container` pour la catégorie et
+     semaine données. Si `lockCategory` est vrai, aucun sélecteur de
+     catégorie n'est affiché (cas coach). */
+  async function mountProgramEditor(container, opts) {
+    const state = {
+      categoryId: opts.categoryId,
+      week: opts.week || 1,
+      allowedCategories: opts.allowedCategories, // null = toutes
+      plan: null,
+      exercises: [],
+      pendingDeletes: []
+    };
+
+    async function load() {
+      if (!state.categoryId) { container.innerHTML = `<div class="empty-state">Aucune catégorie disponible.</div>`; return; }
+      container.innerHTML = `<div class="empty-state">Chargement…</div>`;
+      const { plan, exercises } = await loadProgram(state.categoryId, state.week);
+      state.plan = plan;
+      state.exercises = exercises;
+      draw();
+    }
+
+    function draw() {
+      const catOptions = (state.allowedCategories || categories)
+        .map((c) => `<option value="${c.id}" ${c.id === state.categoryId ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("");
+      const weekTabs = [1, 2, 3, 4, 5].map((w) =>
+        `<button class="week-tab ${w === state.week ? "active" : ""}" data-w="${w}">S${w}</button>`).join("");
+
+      container.innerHTML = `
+        <div class="editor-toolbar">
+          ${opts.lockCategory
+            ? `<div class="locked-cat">Catégorie : <strong>${escapeHtml((categories.find((c) => c.id === state.categoryId) || {}).name || "—")}</strong></div>`
+            : `<div class="field"><label>Catégorie</label><select id="edCategory">${catOptions}</select></div>`}
+          <div class="week-tabs">${weekTabs}</div>
+        </div>
+
+        ${state.plan ? `
+        <div class="plan-card">
+          <div class="field">
+            <label>Objectif de la semaine</label>
+            <textarea id="edObjective" rows="2">${escapeHtml(state.plan.objective || "")}</textarea>
+          </div>
+          <div class="field">
+            <label>Échauffement</label>
+            <textarea id="edWarmup" rows="2">${escapeHtml(state.plan.warmup || "")}</textarea>
+          </div>
+          <div class="field">
+            <label>RPE cible</label>
+            <input type="text" id="edRpe" value="${escapeHtml(state.plan.rpe || "")}" placeholder="ex: 7/10">
+          </div>
+        </div>
+
+        <div class="section-title">Exercices</div>
+        <div id="edExoList" class="exo-edit-grid"></div>
+        <button type="button" class="btn-secondary" id="edAddExo">➕ Ajouter un exercice</button>
+
+        <button type="button" class="btn-primary btn-block btn-publish" id="edPublish">📤 Publier les modifications</button>
+        ` : `
+        <div class="empty-state">
+          <p>Aucun plan pour cette catégorie et cette semaine.</p>
+          <button type="button" class="btn-primary" id="edCreatePlan">Créer le plan de la semaine ${state.week}</button>
+        </div>`}
+      `;
+
+      if (!opts.lockCategory) {
+        $("#edCategory", container).addEventListener("change", (e) => {
+          state.categoryId = Number(e.target.value);
+          load();
+        });
+      }
+      $$(".week-tab", container).forEach((btn) => btn.addEventListener("click", () => {
+        state.week = Number(btn.dataset.w);
+        load();
+      }));
+
+      if (!state.plan) {
+        $("#edCreatePlan", container).addEventListener("click", async () => {
+          try {
+            state.plan = await ensurePlan(state.categoryId, state.week);
+            state.exercises = [];
+            draw();
+          } catch (err) { toast(err.message || String(err), true); }
+        });
         return;
       }
-      btn.textContent = "Connexion…";
-      btn.disabled = true;
-      try {
-        const remote = await TMBCloud.login(u, p);
-        if (remote) {
-          state.category = remote.category || state.category;
-          state.weekIndex = typeof remote.week_index === "number" ? remote.week_index : state.weekIndex;
-          state.theme = remote.theme === "dark" ? "dark" : "light";
-          state.progress = remote.progress || {};
-          save();
-          applyTheme();
+
+      const list = $("#edExoList", container);
+      state.exercises.forEach((ex, idx) => list.appendChild(el(exerciseCardTemplate(ex, idx))));
+      $$(".btn-del-exo", list).forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const card = btn.closest(".exo-edit-card");
+          const id = card.dataset.id;
+          if (!confirm("Supprimer cet exercice ?")) return;
+          try {
+            if (id) await deleteExercise(id);
+            state.exercises = state.exercises.filter((x) => String(x.id) !== String(id));
+            card.remove();
+            toast("Exercice supprimé.");
+          } catch (err) { toast(err.message || String(err), true); }
+        });
+      });
+
+      $("#edAddExo", container).addEventListener("click", () => {
+        state.exercises.push({ id: null, name: "", sets: null, duration: null, intensity: 5, reps: "" });
+        draw();
+      });
+
+      $("#edPublish", container).addEventListener("click", async () => {
+        const btn = $("#edPublish", container);
+        btn.disabled = true;
+        btn.textContent = "Publication…";
+        try {
+          await updatePlan(state.plan.id, {
+            objective: $("#edObjective", container).value.trim(),
+            warmup: $("#edWarmup", container).value.trim(),
+            rpe: $("#edRpe", container).value.trim() || null
+          });
+          const cards = $$(".exo-edit-card", container);
+          for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const data = readExerciseCard(card);
+            const id = card.dataset.id;
+            if (!data.name) continue;
+            if (id) {
+              await updateExercise(id, { ...data, position: i });
+            } else {
+              await addExercise(state.plan.id, { ...data, position: i });
+            }
+          }
+          toast("Programme publié ✅");
+          await load();
+        } catch (err) {
+          toast(err.message || String(err), true);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "📤 Publier les modifications";
         }
-        render();
-      } catch (e) {
-        const msg = String((e && e.message) || "");
-        errEl.textContent = msg.includes("INVALID_PASSWORD") ? "Mot de passe incorrect."
-          : msg.includes("INVALID_INPUT") ? "Identifiant ou mot de passe invalide."
-          : "Connexion impossible. Réessaie plus tard.";
-        btn.textContent = "Se connecter";
-        btn.disabled = false;
-      }
+      });
     }
 
-    btn.addEventListener("click", doLogin);
-    [userInput, passInput].forEach((el) => el.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); }));
+    await load();
   }
 
-  /* ---------- Checkbox delegation (défi, etc.) ---------- */
-  function bindCheckboxes(scope) {
-    scope.querySelectorAll('input[type="checkbox"][data-key]').forEach((cb) => {
-      cb.addEventListener("change", () => {
-        toggleCheck(cb.dataset.key, parseInt(cb.dataset.count, 10), parseInt(cb.dataset.idx, 10));
-        cb.closest(".exercise-row").classList.toggle("checked", cb.checked);
+  /* ================================================================
+     VUE : ADMIN
+     ================================================================ */
+  let adminTab = "users";
+  async function renderAdminView() {
+    const root = $("#view-admin");
+    root.innerHTML = `
+      <div class="page">
+        <div class="page-title">Espace Administrateur</div>
+        <div class="tabs">
+          <button class="tab ${adminTab === "users" ? "active" : ""}" data-tab="users">👥 Utilisateurs</button>
+          <button class="tab ${adminTab === "program" ? "active" : ""}" data-tab="program">📋 Programmes</button>
+        </div>
+        <div id="adminTabBody"></div>
+      </div>
+    `;
+    $$(".tab", root).forEach((btn) => btn.addEventListener("click", () => { adminTab = btn.dataset.tab; renderAdminView(); }));
+
+    const body = $("#adminTabBody", root);
+    if (adminTab === "users") await renderAdminUsersTab(body);
+    else await renderAdminProgramTab(body);
+  }
+
+  async function renderAdminUsersTab(body) {
+    body.innerHTML = `<div class="empty-state">Chargement…</div>`;
+    let users;
+    try { users = await loadAllUsers(); } catch (err) { body.innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`; return; }
+
+    const catOptions = (excludeNone) => categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")
+      + (excludeNone ? "" : `<option value="">—</option>`);
+
+    body.innerHTML = `
+      <div class="admin-actions">
+        <button class="btn-primary" id="btnAddPlayer">➕ Ajouter un compte</button>
+        ${categories.length === 0 ? `<button class="btn-secondary" id="btnSeed">📥 Importer le programme par défaut</button>` : `<button class="btn-secondary" id="btnReseed">♻️ Réinitialiser les données du programme</button>`}
+      </div>
+      <div id="addPlayerForm" class="card hidden"></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Âge</th><th>Catégorie</th><th>Rôle</th><th></th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    `;
+
+    const tbody = $("#usersBody", body);
+    users.forEach((u) => {
+      const row = el(`
+        <tr data-id="${u.id}">
+          <td>${escapeHtml(u.last_name || "")}</td>
+          <td>${escapeHtml(u.first_name || "")}</td>
+          <td>${escapeHtml(u.email || "")}</td>
+          <td>${ageFromBirthDate(u.birth_date) ?? "—"}</td>
+          <td>
+            <select class="rowCategory">
+              ${catOptions()}
+            </select>
+          </td>
+          <td>
+            <select class="rowRole">
+              ${Object.keys(ROLE_LABELS).map((r) => `<option value="${r}" ${r === u.role ? "selected" : ""}>${ROLE_LABELS[r]}</option>`).join("")}
+            </select>
+          </td>
+          <td><button class="btn-danger-ghost btnDeleteUser">🗑️</button></td>
+        </tr>
+      `);
+      $(".rowCategory", row).value = u.assigned_category_id || "";
+      tbody.appendChild(row);
+
+      $(".rowRole", row).addEventListener("change", async (e) => {
+        try {
+          const catId = $(".rowCategory", row).value || null;
+          await updateUserRole(u.id, e.target.value, catId ? Number(catId) : null);
+          toast("Rôle mis à jour.");
+        } catch (err) { toast(err.message || String(err), true); }
       });
+      $(".rowCategory", row).addEventListener("change", async (e) => {
+        try {
+          const catId = e.target.value ? Number(e.target.value) : null;
+          await updateUserRole(u.id, $(".rowRole", row).value, catId);
+          toast("Catégorie mise à jour.");
+        } catch (err) { toast(err.message || String(err), true); }
+      });
+      $(".btnDeleteUser", row).addEventListener("click", async () => {
+        if (!confirm(`Supprimer le compte de ${fullName(u)} ?\n\n(Seul le profil applicatif est supprimé ; le compte d'authentification doit être purgé côté tableau de bord Supabase — voir README.)`)) return;
+        try {
+          await deleteUserProfile(u.id);
+          row.remove();
+          toast("Profil supprimé.");
+        } catch (err) { toast(err.message || String(err), true); }
+      });
+    });
+
+    $("#btnAddPlayer", body).addEventListener("click", () => {
+      const box = $("#addPlayerForm", body);
+      box.classList.toggle("hidden");
+      if (box.classList.contains("hidden")) return;
+      box.innerHTML = `
+        <div class="field-row">
+          <div class="field"><label>Prénom</label><input type="text" id="npFirst"></div>
+          <div class="field"><label>Nom</label><input type="text" id="npLast"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Date de naissance</label><input type="date" id="npBirth"></div>
+          <div class="field"><label>Email</label><input type="email" id="npEmail"></div>
+        </div>
+        <div class="field"><label>Mot de passe temporaire</label><input type="text" id="npPass" placeholder="min. 6 caractères"></div>
+        <p class="auth-hint">Aucun envoi d'e-mail automatique n'est possible depuis une app statique sans clé service_role. Communique ce mot de passe temporaire directement à la personne concernée ; elle pourra le changer plus tard.</p>
+        <button class="btn-primary" id="npSubmit">Créer le compte</button>
+      `;
+      $("#npSubmit", box).addEventListener("click", async () => {
+        try {
+          await adminCreateAccount({
+            firstName: $("#npFirst", box).value.trim(),
+            lastName: $("#npLast", box).value.trim(),
+            birthDate: $("#npBirth", box).value,
+            email: $("#npEmail", box).value.trim(),
+            password: $("#npPass", box).value
+          });
+          toast("Compte créé.");
+          box.classList.add("hidden");
+          await renderAdminUsersTab(body);
+        } catch (err) { toast(err.message || String(err), true); }
+      });
+    });
+
+    const seedBtn = $("#btnSeed", body) || $("#btnReseed", body);
+    if (seedBtn) {
+      seedBtn.addEventListener("click", async () => {
+        if (seedBtn.id === "btnReseed" && !confirm("Réinitialiser écrase les plans/exercices existants avec les données par défaut. Continuer ?")) return;
+        seedBtn.disabled = true;
+        seedBtn.textContent = "Import en cours…";
+        try {
+          await seedDatabase(true);
+          categories = await loadCategories();
+          toast("Programme importé ✅");
+          await renderAdminView();
+        } catch (err) {
+          toast(err.message || String(err), true);
+          seedBtn.disabled = false;
+        }
+      });
+    }
+  }
+
+  async function renderAdminProgramTab(body) {
+    body.innerHTML = `<div id="adminProgramEditor"></div>`;
+    if (!categories.length) {
+      $("#adminProgramEditor", body).innerHTML = `<div class="empty-state">Aucune catégorie : importe d'abord le programme par défaut depuis l'onglet Utilisateurs.</div>`;
+      return;
+    }
+    await mountProgramEditor($("#adminProgramEditor", body), {
+      categoryId: categories[0].id,
+      week: 1,
+      allowedCategories: null,
+      lockCategory: false
     });
   }
 
-  /* ---------- Init ---------- */
-  document.addEventListener("DOMContentLoaded", () => {
-    load();
-    applyTheme();
-    document.getElementById("topbarCrest").addEventListener("click", () => navigate("/"));
-    document.getElementById("topbarBrand").addEventListener("click", () => navigate("/"));
-    document.getElementById("topbarHelpBtn").addEventListener("click", () => navigate("/aide"));
-    document.getElementById("topbarAccountBtn").addEventListener("click", () => navigate("/compte"));
-    window.addEventListener("hashchange", render);
-    render();
-
-    // Restaure l'état depuis le cloud en arrière-plan si une session existe
-    // (l'app a déjà rendu la version locale/en cache, donc pas d'attente).
-    if (typeof TMBCloud !== "undefined" && TMBCloud.available()) {
-      const session = TMBCloud.getSession();
-      if (session) {
-        TMBCloud.login(session.username, session.password).then((remote) => {
-          if (!remote) return;
-          state.category = remote.category || state.category;
-          state.weekIndex = typeof remote.week_index === "number" ? remote.week_index : state.weekIndex;
-          state.theme = remote.theme === "dark" ? "dark" : "light";
-          state.progress = remote.progress || {};
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            category: state.category, weekIndex: state.weekIndex, theme: state.theme, progress: state.progress
-          }));
-          applyTheme();
-          render();
-        }).catch(() => { /* session invalide ou hors-ligne : on garde la version locale */ });
-      }
+  /* ================================================================
+     VUE : COACH
+     ================================================================ */
+  async function renderCoachView() {
+    const root = $("#view-coach");
+    if (!profile.assigned_category_id) {
+      root.innerHTML = `<div class="page"><div class="empty-state">Aucune catégorie ne t'est assignée pour le moment. Contacte un administrateur.</div></div>`;
+      return;
     }
-  });
+    root.innerHTML = `
+      <div class="page">
+        <div class="page-title">Espace Coach</div>
+        <div id="coachEditor"></div>
+      </div>
+    `;
+    await mountProgramEditor($("#coachEditor", root), {
+      categoryId: profile.assigned_category_id,
+      week: 1,
+      allowedCategories: categories.filter((c) => c.id === profile.assigned_category_id),
+      lockCategory: true
+    });
+  }
+
+  /* ================================================================
+     VUE : PLAYER
+     ================================================================ */
+  let playerWeek = 1;
+  async function renderPlayerView() {
+    const root = $("#view-player");
+    if (!profile.assigned_category_id) {
+      root.innerHTML = `<div class="page"><div class="empty-state">Aucune catégorie ne t'est assignée pour le moment. Contacte un administrateur.</div></div>`;
+      return;
+    }
+    root.innerHTML = `<div class="page"><div class="empty-state">Chargement…</div></div>`;
+
+    const { plan, exercises } = await loadProgram(profile.assigned_category_id, playerWeek);
+    const validations = await loadValidations(profile.id, exercises.map((e) => e.id));
+    const doneCount = exercises.filter((e) => validations[e.id] && validations[e.id].validated).length;
+    const pct = exercises.length ? Math.round((doneCount / exercises.length) * 100) : 0;
+    const catName = (categories.find((c) => c.id === profile.assigned_category_id) || {}).name || "";
+
+    root.innerHTML = `
+      <div class="page">
+        <div class="page-eyebrow">Programme · ${escapeHtml(catName)}</div>
+        <div class="page-title">${plan ? escapeHtml(plan.objective || `Semaine ${playerWeek}`) : "Semaine " + playerWeek}</div>
+
+        <div class="week-tabs round" id="playerWeekTabs">
+          ${[1, 2, 3, 4, 5].map((w) => `<button class="week-tab round ${w === playerWeek ? "active" : ""}" data-w="${w}">S${w}</button>`).join("")}
+        </div>
+
+        <div class="progress-card">
+          <div class="progress-ring" style="--pct:${pct}"><div class="progress-ring-inner">${pct}%</div></div>
+          <div class="progress-labels">
+            <div class="title">Progression de la semaine</div>
+            <div class="sub">${doneCount} / ${exercises.length} exercices validés</div>
+          </div>
+        </div>
+
+        ${plan && (plan.warmup || plan.rpe) ? `
+        <div class="info-card">
+          ${plan.warmup ? `<p><strong>Échauffement :</strong> ${escapeHtml(plan.warmup)}</p>` : ""}
+          ${plan.rpe ? `<p><strong>RPE cible :</strong> ${escapeHtml(plan.rpe)}</p>` : ""}
+        </div>` : ""}
+
+        <div id="playerExoList" class="player-exo-grid"></div>
+      </div>
+    `;
+
+    $$(".week-tab", root).forEach((btn) => btn.addEventListener("click", () => { playerWeek = Number(btn.dataset.w); renderPlayerView(); }));
+
+    const list = $("#playerExoList", root);
+    if (!exercises.length) {
+      list.innerHTML = `<div class="empty-state">Aucun exercice pour cette semaine pour le moment.</div>`;
+    }
+    exercises.forEach((ex) => {
+      const isDone = !!(validations[ex.id] && validations[ex.id].validated);
+      const card = el(`
+        <div class="player-exo-card ${isDone ? "is-done" : ""}" data-id="${ex.id}">
+          <div class="pe-top">
+            <div class="pe-name">${escapeHtml(ex.name)}</div>
+            <button type="button" class="pe-check" aria-label="Valider">${isDone ? "✅" : "⬜"}</button>
+          </div>
+          <div class="pe-meta">
+            ${ex.reps ? `<span class="pe-chip">🔄 ${escapeHtml(ex.reps)}</span>` : (ex.sets ? `<span class="pe-chip">🔄 x${ex.sets}</span>` : "")}
+            ${ex.duration ? `<span class="pe-chip">⏱️ ${ex.duration}s</span>` : ""}
+            ${ex.intensity ? `<span class="pe-chip">💪 ${ex.intensity}/10</span>` : ""}
+          </div>
+          ${ex.video_url ? `<a class="pe-video" href="${ex.video_url}" target="_blank" rel="noopener">▶ Voir la vidéo</a>` : ""}
+        </div>
+      `);
+      $(".pe-check", card).addEventListener("click", async () => {
+        const nowDone = !card.classList.contains("is-done");
+        card.classList.toggle("is-done", nowDone);
+        $(".pe-check", card).textContent = nowDone ? "✅" : "⬜";
+        try {
+          await toggleValidation(ex.id, profile.id, nowDone);
+          validations[ex.id] = { validated: nowDone };
+          const newDone = exercises.filter((e) => validations[e.id] && validations[e.id].validated).length;
+          const newPct = exercises.length ? Math.round((newDone / exercises.length) * 100) : 0;
+          $("#playerExoList").parentElement.querySelector(".progress-ring").style.setProperty("--pct", newPct);
+          $("#playerExoList").parentElement.querySelector(".progress-ring-inner").textContent = newPct + "%";
+          $("#playerExoList").parentElement.querySelector(".progress-labels .sub").textContent = `${newDone} / ${exercises.length} exercices validés`;
+        } catch (err) {
+          card.classList.toggle("is-done", !nowDone);
+          $(".pe-check", card).textContent = !nowDone ? "✅" : "⬜";
+          toast(err.message || String(err), true);
+        }
+      });
+      list.appendChild(card);
+    });
+  }
+
+  /* ================================================================
+     BOOTSTRAP / SESSION
+     ================================================================ */
+  async function handleSessionChange() {
+    if (!session) {
+      profile = null;
+      showView("auth");
+      renderAuthView();
+      return;
+    }
+    try {
+      profile = await loadUserProfile(session.user.id);
+    } catch (err) {
+      toast(err.message || String(err), true);
+      return;
+    }
+    if (!profile) {
+      $("#view-auth").innerHTML = `<div class="auth-wrap"><div class="auth-card"><p>Ton profil est en cours de création, réessaie dans un instant.</p><button class="btn-primary" id="retryProfileBtn">Réessayer</button></div></div>`;
+      showView("auth");
+      $("#retryProfileBtn").addEventListener("click", handleSessionChange);
+      return;
+    }
+    renderTopbar();
+    try { categories = await loadCategories(); } catch (e) { categories = []; }
+
+    if (profile.role === "admin") { showView("admin"); await renderAdminView(); }
+    else if (profile.role === "coach") { showView("coach"); await renderCoachView(); }
+    else { showView("player"); await renderPlayerView(); }
+  }
+
+  async function init() {
+    const { data } = await sb.auth.getSession();
+    session = data.session;
+    await handleSessionChange();
+
+    sb.auth.onAuthStateChange((_event, newSession) => {
+      const changed = (newSession && newSession.user && newSession.user.id) !== (session && session.user && session.user.id);
+      session = newSession;
+      if (changed) handleSessionChange();
+    });
+
+    $("#logoutBtn").addEventListener("click", async () => {
+      await signOut();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
 })();

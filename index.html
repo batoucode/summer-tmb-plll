@@ -4,43 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
 <title>TMB — Summer Book 2026-2027</title>
-<meta name="description" content="Suivi de la préparation physique estivale du TMB — saison 2026-2027.">
-<script>
-  try {
-    var raw = localStorage.getItem("tmb_summerbook_v2");
-    var theme = raw && JSON.parse(raw).theme === "dark" ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", theme);
-  } catch (e) {}
-</script>
+<meta name="description" content="Plateforme de suivi de la préparation physique estivale du TMB — admin, coachs et joueurs.">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-<div class="app-shell">
 
-  <div class="topbar">
-    <div class="crest" id="topbarCrest"><img src="assets/logo.svg" alt="Tours Métropole Basket"></div>
-    <div class="brand" id="topbarBrand">
+<header id="topbar" class="topbar hidden">
+  <div class="topbar-brand">
+    <span class="topbar-ball">🏀</span>
+    <div class="topbar-titles">
       <div class="name">Summer Book</div>
       <div class="sub">TMB · 2026-2027</div>
     </div>
-    <div class="topbar-actions">
-      <button class="icon-btn" id="topbarAccountBtn" aria-label="Mon compte">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
-      </button>
-      <button class="icon-btn" id="topbarHelpBtn" aria-label="Aide">?</button>
-    </div>
   </div>
+  <div class="topbar-user">
+    <span id="topbarUserName" class="user-name"></span>
+    <span id="topbarUserRole" class="role-badge"></span>
+    <button id="logoutBtn" class="btn-ghost">Déconnexion</button>
+  </div>
+</header>
 
-  <div id="pageContainer"></div>
+<main id="appRoot">
+  <section id="view-auth" class="view"></section>
+  <section id="view-admin" class="view hidden"></section>
+  <section id="view-coach" class="view hidden"></section>
+  <section id="view-player" class="view hidden"></section>
+</main>
 
-  <nav class="bottom-nav" id="bottomNav"></nav>
-
-</div>
+<div id="toast" class="toast hidden"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/supabase-config.js"></script>
-<script src="assets/cloud.js"></script>
-<script src="assets/data.js"></script>
 <script src="assets/app.js"></script>
 </body>
 </html>
