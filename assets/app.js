@@ -47,6 +47,7 @@
     return [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email || "—";
   }
   const ROLE_LABELS = { admin: "Admin", coach: "Coach", player: "Joueur" };
+  const DAY_LABELS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche", "Défi bonus"];
 
   /* ---------------- État global ---------------- */
   let session = null;
@@ -124,15 +125,31 @@
     if (error) throw error;
   }
 
+  /* Charge le plan d'une (catégorie, semaine) avec tous ses jours et,
+     pour chaque jour, ses exercices (triés par position). Un jour
+     absent en base n'apparaît simplement pas dans `days`. */
   async function loadProgram(categoryId, weekNumber) {
     const { data: plan, error: planErr } = await sb.from("tmb_training_plans")
       .select("*").eq("category_id", categoryId).eq("week_number", weekNumber).maybeSingle();
     if (planErr) throw planErr;
-    if (!plan) return { plan: null, exercises: [] };
-    const { data: exercises, error: exErr } = await sb.from("tmb_exercises")
-      .select("*").eq("plan_id", plan.id).order("position", { ascending: true });
-    if (exErr) throw exErr;
-    return { plan, exercises: exercises || [] };
+    if (!plan) return { plan: null, days: [] };
+
+    const { data: dayRows, error: dayErr } = await sb.from("tmb_training_days")
+      .select("*").eq("plan_id", plan.id).order("day_index", { ascending: true });
+    if (dayErr) throw dayErr;
+
+    const dayIds = (dayRows || []).map((d) => d.id);
+    let exercisesByDay = {};
+    if (dayIds.length) {
+      const { data: exRows, error: exErr } = await sb.from("tmb_exercises")
+        .select("*").in("day_id", dayIds).order("position", { ascending: true });
+      if (exErr) throw exErr;
+      (exRows || []).forEach((e) => {
+        (exercisesByDay[e.day_id] = exercisesByDay[e.day_id] || []).push(e);
+      });
+    }
+    const days = (dayRows || []).map((d) => ({ ...d, exercises: exercisesByDay[d.id] || [] }));
+    return { plan, days };
   }
 
   async function ensurePlan(categoryId, weekNumber) {
@@ -148,13 +165,26 @@
     if (error) throw error;
   }
 
+  async function ensureDay(planId, dayIndex) {
+    const { data, error } = await sb.from("tmb_training_days")
+      .upsert({ plan_id: planId, day_index: dayIndex }, { onConflict: "plan_id,day_index" })
+      .select().single();
+    if (error) throw error;
+    return { ...data, exercises: [] };
+  }
+
+  async function updateDay(dayId, fields) {
+    const { error } = await sb.from("tmb_training_days").update(fields).eq("id", dayId);
+    if (error) throw error;
+  }
+
   async function updateExercise(exerciseId, data) {
     const { error } = await sb.from("tmb_exercises").update(data).eq("id", exerciseId);
     if (error) throw error;
   }
 
-  async function addExercise(planId, data) {
-    const { data: row, error } = await sb.from("tmb_exercises").insert({ plan_id: planId, ...data }).select().single();
+  async function addExercise(dayId, data) {
+    const { data: row, error } = await sb.from("tmb_exercises").insert({ day_id: dayId, ...data }).select().single();
     if (error) throw error;
     return row;
   }
@@ -184,6 +214,20 @@
     if (error) throw error;
   }
 
+  /* Valide (ou dévalide) en un seul aller-retour tous les exercices
+     d'une même journée — bouton "Valider toute la séance" côté joueur. */
+  async function bulkValidateDay(exerciseIds, playerId, validated) {
+    if (!exerciseIds.length) return;
+    const rows = exerciseIds.map((exerciseId) => ({
+      player_id: playerId,
+      exercise_id: exerciseId,
+      validated,
+      validation_date: validated ? new Date().toISOString() : null
+    }));
+    const { error } = await sb.from("tmb_player_validations").upsert(rows, { onConflict: "player_id,exercise_id" });
+    if (error) throw error;
+  }
+
   /* ---------------- Seed (import des données par défaut) ---------------- */
   async function seedDatabase(force) {
     const { count, error: countErr } = await sb.from("tmb_categories").select("id", { count: "exact", head: true });
@@ -205,28 +249,37 @@
     const catByName = Object.fromEntries(cats.map((c) => [c.name, c]));
 
     for (const week of data.weeks) {
-      for (const catName of Object.keys(week.exercises)) {
+      for (const catName of Object.keys(week.by_category)) {
         const cat = catByName[catName];
         if (!cat) continue;
-        const rpe = (week.rpe && week.rpe[catName]) || null;
         const { data: plan, error: planErr } = await sb.from("tmb_training_plans")
           .upsert({
             category_id: cat.id, week_number: week.week,
-            objective: week.objective, warmup: week.warmup, rpe
+            objective: week.objective, staff_quote: week.staff_quote
           }, { onConflict: "category_id,week_number" })
           .select().single();
         if (planErr) throw planErr;
 
-        const { error: delErr } = await sb.from("tmb_exercises").delete().eq("plan_id", plan.id);
-        if (delErr) throw delErr;
+        for (const day of week.by_category[catName].days) {
+          const { data: dayRow, error: dayErr } = await sb.from("tmb_training_days")
+            .upsert({
+              plan_id: plan.id, day_index: day.day_index,
+              label: day.label, is_rest: day.is_rest, warmup: day.warmup, rpe: day.rpe
+            }, { onConflict: "plan_id,day_index" })
+            .select().single();
+          if (dayErr) throw dayErr;
 
-        const rows = week.exercises[catName].map((e, i) => ({
-          plan_id: plan.id, name: e.name, sets: e.sets, duration: e.duration,
-          intensity: e.intensity, reps: e.reps, video_url: e.video_url, position: i
-        }));
-        if (rows.length) {
-          const { error: insErr } = await sb.from("tmb_exercises").insert(rows);
-          if (insErr) throw insErr;
+          const { error: delErr } = await sb.from("tmb_exercises").delete().eq("day_id", dayRow.id);
+          if (delErr) throw delErr;
+
+          const rows = day.exercises.map((e, i) => ({
+            day_id: dayRow.id, name: e.name, sets: e.sets, duration: e.duration,
+            intensity: e.intensity, reps: e.reps, video_url: e.video_url, position: i
+          }));
+          if (rows.length) {
+            const { error: insErr } = await sb.from("tmb_exercises").insert(rows);
+            if (insErr) throw insErr;
+          }
         }
       }
     }
@@ -390,23 +443,27 @@
 
   /* Monte l'éditeur de programme dans `container` pour la catégorie et
      semaine données. Si `lockCategory` est vrai, aucun sélecteur de
-     catégorie n'est affiché (cas coach). */
+     catégorie n'est affiché (cas coach). Le programme est organisé par
+     jour (Lundi à Dimanche + un créneau bonus "Défi") : on édite un jour
+     à la fois, sélectionné via des onglets. */
   async function mountProgramEditor(container, opts) {
     const state = {
       categoryId: opts.categoryId,
       week: opts.week || 1,
+      dayIndex: 0,
       allowedCategories: opts.allowedCategories, // null = toutes
       plan: null,
-      exercises: [],
-      pendingDeletes: []
+      days: [] // jours existants en base pour ce plan
     };
+
+    function dayByIndex(idx) { return state.days.find((d) => d.day_index === idx); }
 
     async function load() {
       if (!state.categoryId) { container.innerHTML = `<div class="empty-state">Aucune catégorie disponible.</div>`; return; }
       container.innerHTML = `<div class="empty-state">Chargement…</div>`;
-      const { plan, exercises } = await loadProgram(state.categoryId, state.week);
+      const { plan, days } = await loadProgram(state.categoryId, state.week);
       state.plan = plan;
-      state.exercises = exercises;
+      state.days = days;
       draw();
     }
 
@@ -431,20 +488,20 @@
             <textarea id="edObjective" rows="2">${escapeHtml(state.plan.objective || "")}</textarea>
           </div>
           <div class="field">
-            <label>Échauffement</label>
-            <textarea id="edWarmup" rows="2">${escapeHtml(state.plan.warmup || "")}</textarea>
-          </div>
-          <div class="field">
-            <label>RPE cible</label>
-            <input type="text" id="edRpe" value="${escapeHtml(state.plan.rpe || "")}" placeholder="ex: 7/10">
+            <label>Mot du staff</label>
+            <textarea id="edStaffQuote" rows="2">${escapeHtml(state.plan.staff_quote || "")}</textarea>
           </div>
         </div>
 
-        <div class="section-title">Exercices</div>
-        <div id="edExoList" class="exo-edit-grid"></div>
-        <button type="button" class="btn-secondary" id="edAddExo">➕ Ajouter un exercice</button>
+        <div class="week-tabs" id="edDayTabs">
+          ${DAY_LABELS.map((label, i) => {
+            const d = dayByIndex(i);
+            const cls = i === state.dayIndex ? "active" : (d ? (d.is_rest ? "is-rest" : "") : "is-empty");
+            return `<button class="week-tab ${cls}" data-d="${i}">${i === 7 ? "🏆" : label.slice(0, 3)}</button>`;
+          }).join("")}
+        </div>
 
-        <button type="button" class="btn-primary btn-block btn-publish" id="edPublish">📤 Publier les modifications</button>
+        <div id="edDayBody"></div>
         ` : `
         <div class="empty-state">
           <p>Aucun plan pour cette catégorie et cette semaine.</p>
@@ -458,7 +515,7 @@
           load();
         });
       }
-      $$(".week-tab", container).forEach((btn) => btn.addEventListener("click", () => {
+      $$(".week-tabs:not(#edDayTabs) .week-tab", container).forEach((btn) => btn.addEventListener("click", () => {
         state.week = Number(btn.dataset.w);
         load();
       }));
@@ -467,54 +524,146 @@
         $("#edCreatePlan", container).addEventListener("click", async () => {
           try {
             state.plan = await ensurePlan(state.categoryId, state.week);
-            state.exercises = [];
+            state.days = [];
             draw();
           } catch (err) { toast(err.message || String(err), true); }
         });
         return;
       }
 
-      const list = $("#edExoList", container);
-      state.exercises.forEach((ex, idx) => list.appendChild(el(exerciseCardTemplate(ex, idx))));
-      $$(".btn-del-exo", list).forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const card = btn.closest(".exo-edit-card");
+      $$("#edDayTabs .week-tab", container).forEach((btn) => btn.addEventListener("click", () => {
+        state.dayIndex = Number(btn.dataset.d);
+        drawDay();
+      }));
+
+      $("#edObjective", container).addEventListener("blur", () => saveWeekInfo());
+      $("#edStaffQuote", container).addEventListener("blur", () => saveWeekInfo());
+
+      drawDay();
+    }
+
+    async function saveWeekInfo() {
+      try {
+        await updatePlan(state.plan.id, {
+          objective: $("#edObjective", container).value.trim(),
+          staff_quote: $("#edStaffQuote", container).value.trim()
+        });
+      } catch (err) { toast(err.message || String(err), true); }
+    }
+
+    function drawDay() {
+      const body = $("#edDayBody", container);
+      const day = dayByIndex(state.dayIndex);
+      const dayLabel = DAY_LABELS[state.dayIndex];
+
+      if (!day) {
+        body.innerHTML = `
+          <div class="empty-state">
+            <p>${escapeHtml(dayLabel)} n'a pas encore de séance définie.</p>
+            <button type="button" class="btn-primary" id="edCreateDay">Créer ${state.dayIndex === 7 ? "le défi bonus" : "ce jour"}</button>
+          </div>`;
+        $("#edCreateDay", body).addEventListener("click", async () => {
+          try {
+            const newDay = await ensureDay(state.plan.id, state.dayIndex);
+            state.days.push(newDay);
+            drawDay();
+          } catch (err) { toast(err.message || String(err), true); }
+        });
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="plan-card">
+          <div class="field-row">
+            <div class="field field-grow">
+              <label>Intitulé de la séance</label>
+              <input type="text" id="dyLabel" value="${escapeHtml(day.label || "")}" placeholder="ex: Force bas du corps">
+            </div>
+          </div>
+          ${state.dayIndex < 7 ? `
+          <label class="checkbox-row">
+            <input type="checkbox" id="dyIsRest" ${day.is_rest ? "checked" : ""}>
+            <span>Jour de repos (aucun exercice)</span>
+          </label>` : ""}
+          <div class="field-row" id="dyDetailsFields" style="${day.is_rest ? "display:none" : ""}">
+            <div class="field field-grow">
+              <label>Échauffement</label>
+              <textarea id="dyWarmup" rows="2">${escapeHtml(day.warmup || "")}</textarea>
+            </div>
+            <div class="field">
+              <label>RPE cible</label>
+              <input type="text" id="dyRpe" value="${escapeHtml(day.rpe || "")}" placeholder="ex: 7/10">
+            </div>
+          </div>
+        </div>
+
+        <div id="dyExoSection" style="${day.is_rest ? "display:none" : ""}">
+          <div class="section-title">Exercices</div>
+          <div id="edExoList" class="exo-edit-grid"></div>
+          <button type="button" class="btn-secondary" id="edAddExo">➕ Ajouter un exercice</button>
+        </div>
+
+        <button type="button" class="btn-primary btn-block btn-publish" id="edPublish">📤 Publier les modifications</button>
+      `;
+
+      if (state.dayIndex < 7) {
+        $("#dyIsRest", body).addEventListener("change", (e) => {
+          $("#dyDetailsFields", body).style.display = e.target.checked ? "none" : "";
+          $("#dyExoSection", body).style.display = e.target.checked ? "none" : "";
+        });
+      }
+
+      const list = $("#edExoList", body);
+      function bindExoCard(card) {
+        $(".btn-del-exo", card).addEventListener("click", async () => {
           const id = card.dataset.id;
           if (!confirm("Supprimer cet exercice ?")) return;
           try {
             if (id) await deleteExercise(id);
-            state.exercises = state.exercises.filter((x) => String(x.id) !== String(id));
             card.remove();
             toast("Exercice supprimé.");
           } catch (err) { toast(err.message || String(err), true); }
         });
+      }
+      day.exercises.forEach((ex, idx) => {
+        const card = el(exerciseCardTemplate(ex, idx));
+        list.appendChild(card);
+        bindExoCard(card);
       });
 
-      $("#edAddExo", container).addEventListener("click", () => {
-        state.exercises.push({ id: null, name: "", sets: null, duration: null, intensity: 5, reps: "" });
-        draw();
+      // Ajoute une carte vide directement dans le DOM (pas de redraw) pour
+      // ne pas perdre les champs déjà remplis (intitulé du jour, exercices
+      // en cours d'édition) qui ne sont pas encore publiés.
+      $("#edAddExo", body).addEventListener("click", () => {
+        const card = el(exerciseCardTemplate({ id: null, name: "", sets: null, duration: null, intensity: 5, reps: "" }, list.children.length));
+        list.appendChild(card);
+        bindExoCard(card);
       });
 
-      $("#edPublish", container).addEventListener("click", async () => {
-        const btn = $("#edPublish", container);
+      $("#edPublish", body).addEventListener("click", async () => {
+        const btn = $("#edPublish", body);
         btn.disabled = true;
         btn.textContent = "Publication…";
         try {
-          await updatePlan(state.plan.id, {
-            objective: $("#edObjective", container).value.trim(),
-            warmup: $("#edWarmup", container).value.trim(),
-            rpe: $("#edRpe", container).value.trim() || null
+          const isRest = state.dayIndex < 7 && $("#dyIsRest", body).checked;
+          await updateDay(day.id, {
+            label: $("#dyLabel", body).value.trim(),
+            is_rest: isRest,
+            warmup: isRest ? null : ($("#dyWarmup", body).value.trim() || null),
+            rpe: isRest ? null : ($("#dyRpe", body).value.trim() || null)
           });
-          const cards = $$(".exo-edit-card", container);
-          for (let i = 0; i < cards.length; i++) {
-            const card = cards[i];
-            const data = readExerciseCard(card);
-            const id = card.dataset.id;
-            if (!data.name) continue;
-            if (id) {
-              await updateExercise(id, { ...data, position: i });
-            } else {
-              await addExercise(state.plan.id, { ...data, position: i });
+          if (!isRest) {
+            const cards = $$(".exo-edit-card", body);
+            for (let i = 0; i < cards.length; i++) {
+              const card = cards[i];
+              const data = readExerciseCard(card);
+              const id = card.dataset.id;
+              if (!data.name) continue;
+              if (id) {
+                await updateExercise(id, { ...data, position: i });
+              } else {
+                await addExercise(day.id, { ...data, position: i });
+              }
             }
           }
           toast("Programme publié ✅");
@@ -715,8 +864,23 @@
 
   /* ================================================================
      VUE : PLAYER
+     Semaine → liste des jours (comme un planning papier) → détail d'un
+     jour avec ses exercices, validables un par un ou d'un coup ("Valider
+     toute la séance").
      ================================================================ */
   let playerWeek = 1;
+  let playerDayIndex = null; // null = vue "semaine" (liste des jours)
+
+  function dayStatus(day, validations) {
+    if (day.is_rest) return { label: "Repos", cls: "rest", done: 0, total: 0 };
+    const total = day.exercises.length;
+    const done = day.exercises.filter((e) => validations[e.id] && validations[e.id].validated).length;
+    if (total === 0) return { label: "—", cls: "empty", done: 0, total: 0 };
+    if (done === total) return { label: "Fait", cls: "done", done, total };
+    if (done > 0) return { label: `${done}/${total}`, cls: "partial", done, total };
+    return { label: "À faire", cls: "todo", done, total };
+  }
+
   async function renderPlayerView() {
     const root = $("#view-player");
     if (!profile.assigned_category_id) {
@@ -725,11 +889,22 @@
     }
     root.innerHTML = `<div class="page"><div class="empty-state">Chargement…</div></div>`;
 
-    const { plan, exercises } = await loadProgram(profile.assigned_category_id, playerWeek);
-    const validations = await loadValidations(profile.id, exercises.map((e) => e.id));
-    const doneCount = exercises.filter((e) => validations[e.id] && validations[e.id].validated).length;
-    const pct = exercises.length ? Math.round((doneCount / exercises.length) * 100) : 0;
+    const { plan, days } = await loadProgram(profile.assigned_category_id, playerWeek);
+    const allExerciseIds = days.flatMap((d) => d.exercises.map((e) => e.id));
+    const validations = await loadValidations(profile.id, allExerciseIds);
     const catName = (categories.find((c) => c.id === profile.assigned_category_id) || {}).name || "";
+
+    if (playerDayIndex !== null) {
+      renderPlayerDayDetail(root, { plan, days, validations, catName });
+    } else {
+      renderPlayerWeekOverview(root, { plan, days, validations, catName });
+    }
+  }
+
+  function renderPlayerWeekOverview(root, { plan, days, validations, catName }) {
+    const totalEx = days.reduce((s, d) => s + d.exercises.length, 0);
+    const doneEx = days.reduce((s, d) => s + d.exercises.filter((e) => validations[e.id] && validations[e.id].validated).length, 0);
+    const pct = totalEx ? Math.round((doneEx / totalEx) * 100) : 0;
 
     root.innerHTML = `
       <div class="page">
@@ -744,27 +919,77 @@
           <div class="progress-ring" style="--pct:${pct}"><div class="progress-ring-inner">${pct}%</div></div>
           <div class="progress-labels">
             <div class="title">Progression de la semaine</div>
-            <div class="sub">${doneCount} / ${exercises.length} exercices validés</div>
+            <div class="sub">${doneEx} / ${totalEx} exercices validés</div>
           </div>
         </div>
 
-        ${plan && (plan.warmup || plan.rpe) ? `
-        <div class="info-card">
-          ${plan.warmup ? `<p><strong>Échauffement :</strong> ${escapeHtml(plan.warmup)}</p>` : ""}
-          ${plan.rpe ? `<p><strong>RPE cible :</strong> ${escapeHtml(plan.rpe)}</p>` : ""}
-        </div>` : ""}
+        ${plan && plan.staff_quote ? `<div class="info-card"><p><strong>Le mot du staff :</strong> ${escapeHtml(plan.staff_quote)}</p></div>` : ""}
 
-        <div id="playerExoList" class="player-exo-grid"></div>
+        <div class="section-title">Jours de la semaine</div>
+        <div id="playerDayList" class="day-list"></div>
       </div>
     `;
 
     $$(".week-tab", root).forEach((btn) => btn.addEventListener("click", () => { playerWeek = Number(btn.dataset.w); renderPlayerView(); }));
 
-    const list = $("#playerExoList", root);
-    if (!exercises.length) {
-      list.innerHTML = `<div class="empty-state">Aucun exercice pour cette semaine pour le moment.</div>`;
+    const list = $("#playerDayList", root);
+    if (!days.length) {
+      list.innerHTML = `<div class="empty-state">Programme pas encore publié pour cette semaine.</div>`;
+      return;
     }
-    exercises.forEach((ex) => {
+    days.forEach((day) => {
+      const st = dayStatus(day, validations);
+      const label = DAY_LABELS[day.day_index];
+      const card = el(`
+        <button type="button" class="day-card ${st.cls}" data-d="${day.day_index}" ${day.is_rest ? "disabled" : ""}>
+          <div class="day-card-left">
+            <div class="day-name">${day.day_index === 7 ? "🏆 " : ""}${escapeHtml(label)}</div>
+            <div class="day-session">${escapeHtml(day.label || (day.is_rest ? "Repos" : ""))}</div>
+          </div>
+          <span class="status-pill ${st.cls}">${st.label}</span>
+        </button>
+      `);
+      if (!day.is_rest) {
+        card.addEventListener("click", () => { playerDayIndex = day.day_index; renderPlayerView(); });
+      }
+      list.appendChild(card);
+    });
+  }
+
+  function renderPlayerDayDetail(root, { days, validations, catName }) {
+    const day = days.find((d) => d.day_index === playerDayIndex);
+    if (!day) { playerDayIndex = null; renderPlayerView(); return; }
+    const label = DAY_LABELS[day.day_index];
+    const allDone = day.exercises.length > 0 && day.exercises.every((e) => validations[e.id] && validations[e.id].validated);
+
+    root.innerHTML = `
+      <div class="page">
+        <button class="btn-ghost" id="backToWeek">← Retour à la semaine</button>
+        <div class="page-eyebrow">${escapeHtml(label)} · ${escapeHtml(catName)}</div>
+        <div class="page-title">${escapeHtml(day.label || "")}</div>
+
+        ${day.warmup || day.rpe ? `
+        <div class="info-card">
+          ${day.warmup ? `<p><strong>Échauffement :</strong> ${escapeHtml(day.warmup)}</p>` : ""}
+          ${day.rpe ? `<p><strong>RPE cible :</strong> ${escapeHtml(day.rpe)}</p>` : ""}
+        </div>` : ""}
+
+        ${day.exercises.length ? `
+        <button type="button" class="btn-primary btn-block" id="bulkValidateBtn">
+          ${allDone ? "↺ Tout dé-valider" : "✅ Valider toute la séance"}
+        </button>` : ""}
+
+        <div id="playerExoList" class="player-exo-grid"></div>
+      </div>
+    `;
+
+    $("#backToWeek", root).addEventListener("click", () => { playerDayIndex = null; renderPlayerView(); });
+
+    const list = $("#playerExoList", root);
+    if (!day.exercises.length) {
+      list.innerHTML = `<div class="empty-state">Aucun exercice pour cette séance.</div>`;
+    }
+    day.exercises.forEach((ex) => {
       const isDone = !!(validations[ex.id] && validations[ex.id].validated);
       const card = el(`
         <div class="player-exo-card ${isDone ? "is-done" : ""}" data-id="${ex.id}">
@@ -787,11 +1012,7 @@
         try {
           await toggleValidation(ex.id, profile.id, nowDone);
           validations[ex.id] = { validated: nowDone };
-          const newDone = exercises.filter((e) => validations[e.id] && validations[e.id].validated).length;
-          const newPct = exercises.length ? Math.round((newDone / exercises.length) * 100) : 0;
-          $("#playerExoList").parentElement.querySelector(".progress-ring").style.setProperty("--pct", newPct);
-          $("#playerExoList").parentElement.querySelector(".progress-ring-inner").textContent = newPct + "%";
-          $("#playerExoList").parentElement.querySelector(".progress-labels .sub").textContent = `${newDone} / ${exercises.length} exercices validés`;
+          refreshBulkButton(root, day, validations);
         } catch (err) {
           card.classList.toggle("is-done", !nowDone);
           $(".pe-check", card).textContent = !nowDone ? "✅" : "⬜";
@@ -800,6 +1021,35 @@
       });
       list.appendChild(card);
     });
+
+    const bulkBtn = $("#bulkValidateBtn", root);
+    if (bulkBtn) {
+      bulkBtn.addEventListener("click", async () => {
+        const willValidate = bulkBtn.textContent.includes("Valider");
+        bulkBtn.disabled = true;
+        try {
+          await bulkValidateDay(day.exercises.map((e) => e.id), profile.id, willValidate);
+          day.exercises.forEach((e) => { validations[e.id] = { validated: willValidate }; });
+          $$(".player-exo-card", root).forEach((card) => {
+            card.classList.toggle("is-done", willValidate);
+            $(".pe-check", card).textContent = willValidate ? "✅" : "⬜";
+          });
+          refreshBulkButton(root, day, validations);
+          toast(willValidate ? "Séance validée ✅" : "Séance dé-validée.");
+        } catch (err) {
+          toast(err.message || String(err), true);
+        } finally {
+          bulkBtn.disabled = false;
+        }
+      });
+    }
+  }
+
+  function refreshBulkButton(root, day, validations) {
+    const bulkBtn = $("#bulkValidateBtn", root);
+    if (!bulkBtn) return;
+    const allDone = day.exercises.length > 0 && day.exercises.every((e) => validations[e.id] && validations[e.id].validated);
+    bulkBtn.textContent = allDone ? "↺ Tout dé-valider" : "✅ Valider toute la séance";
   }
 
   /* ================================================================

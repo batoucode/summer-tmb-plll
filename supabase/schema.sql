@@ -1,15 +1,20 @@
 -- ============================================================
--- TMB SUMMER BOOK — Schéma Supabase (v2 — plateforme multi-rôles)
+-- TMB SUMMER BOOK — Schéma Supabase (v3 — plateforme multi-rôles,
+-- programme organisé par jour)
 -- Tables préfixées "tmb_" : instance Supabase partagée entre plusieurs
 -- projets, on reste isolé du reste sans schéma dédié (PostgREST
 -- n'expose que "public" par défaut).
 --
--- Remplace l'ancien système de compte "maison" (tmb_players +
--- tmb_login_or_signup / tmb_save_state) par une authentification
--- Supabase Auth standard (email + mot de passe), avec 3 rôles :
--- admin, coach, player.
+-- v3 réintroduit la granularité par jour (comme la toute première
+-- version de l'app, en localStorage) à l'intérieur du plan hebdomadaire
+-- multi-rôles v2 : chaque plan (catégorie + semaine) contient jusqu'à
+-- 8 "jours" (Lundi à Dimanche + un slot bonus "Défi") et les exercices
+-- sont rattachés à un jour, pas directement au plan. Ça permet au
+-- joueur de valider ses séances jour par jour, comme dans le programme
+-- papier original.
 --
--- Idempotent : peut être rejoué sans erreur sur une base déjà migrée.
+-- Idempotent : peut être rejoué sans erreur sur une base déjà migrée
+-- (y compris depuis le schéma v2 — voir la section MIGRATION v2 → v3).
 -- ============================================================
 
 create extension if not exists pgcrypto;
@@ -44,24 +49,48 @@ create index if not exists tmb_profiles_category_idx on public.tmb_profiles (ass
 
 -- ------------------------------------------------------------
 -- 3. TRAINING PLANS — un plan = une catégorie + une semaine (1 à 5)
+--    Contient uniquement les infos valables pour toute la semaine ;
+--    l'échauffement et le RPE, spécifiques à chaque séance, sont
+--    portés par tmb_training_days.
 -- ------------------------------------------------------------
 create table if not exists public.tmb_training_plans (
   id uuid primary key default gen_random_uuid(),
   category_id int not null references public.tmb_categories(id) on delete cascade,
   week_number int not null check (week_number between 1 and 5),
   objective text,
-  warmup text,
-  rpe text,
+  staff_quote text,
   updated_at timestamptz not null default now(),
   unique (category_id, week_number)
 );
+-- Migration douce v2 → v3 : les champs hebdo warmup/rpe sont remplacés
+-- par les mêmes champs au niveau du jour (tmb_training_days).
+alter table public.tmb_training_plans add column if not exists staff_quote text;
+alter table public.tmb_training_plans drop column if exists warmup;
+alter table public.tmb_training_plans drop column if exists rpe;
 
 -- ------------------------------------------------------------
--- 4. EXERCISES — exercices d'un plan
+-- 4. TRAINING DAYS — une séance (ou un repos) dans la semaine
+--    day_index : 0=Lundi … 6=Dimanche, 7=créneau bonus "Défi de la
+--    semaine" (hors planning des 7 jours, optionnel).
+-- ------------------------------------------------------------
+create table if not exists public.tmb_training_days (
+  id uuid primary key default gen_random_uuid(),
+  plan_id uuid not null references public.tmb_training_plans(id) on delete cascade,
+  day_index int not null check (day_index between 0 and 7),
+  label text,
+  is_rest boolean not null default false,
+  warmup text,
+  rpe text,
+  unique (plan_id, day_index)
+);
+create index if not exists tmb_days_plan_idx on public.tmb_training_days (plan_id);
+
+-- ------------------------------------------------------------
+-- 5. EXERCISES — exercices d'un jour donné
 -- ------------------------------------------------------------
 create table if not exists public.tmb_exercises (
   id uuid primary key default gen_random_uuid(),
-  plan_id uuid not null references public.tmb_training_plans(id) on delete cascade,
+  day_id uuid references public.tmb_training_days(id) on delete cascade,
   name text not null,
   sets int,
   duration int,        -- en secondes
@@ -71,10 +100,34 @@ create table if not exists public.tmb_exercises (
   position int not null default 0,
   video_url text
 );
-create index if not exists tmb_exercises_plan_idx on public.tmb_exercises (plan_id);
+
+-- ---- MIGRATION v2 → v3 --------------------------------------------
+-- La v2 rattachait les exercices directement au plan (colonne plan_id).
+-- Comme le regroupement par jour change la structure des données (et
+-- qu'aucune app en prod ne dépend encore de la v2 fraîchement introduite),
+-- on repart d'exercices/validations vides plutôt que de tenter une
+-- reconstitution automatique impossible à fiabiliser. Réimporter les
+-- données par défaut depuis l'espace Admin après migration.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'tmb_exercises' and column_name = 'plan_id'
+  ) then
+    execute 'truncate table public.tmb_player_validations, public.tmb_exercises';
+    execute 'alter table public.tmb_exercises drop column plan_id';
+  end if;
+end $$;
+
+alter table public.tmb_exercises add column if not exists day_id uuid references public.tmb_training_days(id) on delete cascade;
+create index if not exists tmb_exercises_day_idx on public.tmb_exercises (day_id);
 
 -- ------------------------------------------------------------
--- 5. PLAYER VALIDATIONS — 1 ligne par (joueur, exercice)
+-- 6. PLAYER VALIDATIONS — 1 ligne par (joueur, exercice)
+--    Le statut "jour validé" est dérivé côté app : un jour est complet
+--    quand tous ses exercices sont validated = true (pas de table dédiée,
+--    une seule source de vérité). Le bouton "Valider toute la séance"
+--    de l'app fait un upsert groupé sur tous les exercices du jour.
 -- ------------------------------------------------------------
 create table if not exists public.tmb_player_validations (
   id uuid primary key default gen_random_uuid(),
@@ -208,6 +261,7 @@ create trigger tmb_before_profile_update
 alter table public.tmb_categories enable row level security;
 alter table public.tmb_profiles enable row level security;
 alter table public.tmb_training_plans enable row level security;
+alter table public.tmb_training_days enable row level security;
 alter table public.tmb_exercises enable row level security;
 alter table public.tmb_player_validations enable row level security;
 
@@ -264,6 +318,29 @@ create policy tmb_plans_write on public.tmb_training_plans
     or (public.tmb_is_coach() and category_id = public.tmb_current_category())
   );
 
+-- ---------- tmb_training_days ----------
+drop policy if exists tmb_days_select on public.tmb_training_days;
+create policy tmb_days_select on public.tmb_training_days
+  for select to authenticated using (true);
+
+drop policy if exists tmb_days_write on public.tmb_training_days;
+create policy tmb_days_write on public.tmb_training_days
+  for all to authenticated
+  using (
+    public.tmb_is_admin()
+    or exists (
+      select 1 from public.tmb_training_plans p
+      where p.id = plan_id and public.tmb_is_coach() and p.category_id = public.tmb_current_category()
+    )
+  )
+  with check (
+    public.tmb_is_admin()
+    or exists (
+      select 1 from public.tmb_training_plans p
+      where p.id = plan_id and public.tmb_is_coach() and p.category_id = public.tmb_current_category()
+    )
+  );
+
 -- ---------- tmb_exercises ----------
 drop policy if exists tmb_exercises_select on public.tmb_exercises;
 create policy tmb_exercises_select on public.tmb_exercises
@@ -275,19 +352,19 @@ create policy tmb_exercises_write on public.tmb_exercises
   using (
     public.tmb_is_admin()
     or exists (
-      select 1 from public.tmb_training_plans p
-      where p.id = plan_id
-        and public.tmb_is_coach()
-        and p.category_id = public.tmb_current_category()
+      select 1
+      from public.tmb_training_days d
+      join public.tmb_training_plans p on p.id = d.plan_id
+      where d.id = day_id and public.tmb_is_coach() and p.category_id = public.tmb_current_category()
     )
   )
   with check (
     public.tmb_is_admin()
     or exists (
-      select 1 from public.tmb_training_plans p
-      where p.id = plan_id
-        and public.tmb_is_coach()
-        and p.category_id = public.tmb_current_category()
+      select 1
+      from public.tmb_training_days d
+      join public.tmb_training_plans p on p.id = d.plan_id
+      where d.id = day_id and public.tmb_is_coach() and p.category_id = public.tmb_current_category()
     )
   );
 
@@ -300,8 +377,10 @@ create policy tmb_validations_select on public.tmb_player_validations
     or (
       public.tmb_is_coach()
       and exists (
-        select 1 from public.tmb_exercises e
-        join public.tmb_training_plans p on p.id = e.plan_id
+        select 1
+        from public.tmb_exercises e
+        join public.tmb_training_days d on d.id = e.day_id
+        join public.tmb_training_plans p on p.id = d.plan_id
         where e.id = exercise_id and p.category_id = public.tmb_current_category()
       )
     )
@@ -314,10 +393,8 @@ create policy tmb_validations_write on public.tmb_player_validations
   with check (player_id = auth.uid() or public.tmb_is_admin());
 
 -- ============================================================
--- ANCIEN SYSTÈME (v1) — conservé tel quel, non utilisé par l'app v2.
--- À supprimer manuellement une fois la migration des données de
--- tmb_players (progression locale par identifiant/mot de passe)
--- terminée, si nécessaire :
+-- ANCIEN SYSTÈME (v1, pré-Supabase Auth) — conservé tel quel, non
+-- utilisé par l'app v3. À supprimer manuellement si nécessaire :
 --   drop table if exists public.tmb_players cascade;
 --   drop function if exists public.tmb_login_or_signup(text, text);
 --   drop function if exists public.tmb_save_state(text, text, text, int, text, jsonb);

@@ -25,8 +25,8 @@ build), branchée sur **Supabase** (Auth + Postgres + RLS).
 2. **Premier compte créé sur l'instance = admin automatiquement** (bootstrap, voir §5). Tous les suivants sont `player` par défaut.
 3. **Connexion** : redirection automatique vers la vue correspondant au rôle.
 4. **Admin** : promeut un joueur en coach et lui assigne une catégorie via l'onglet *Utilisateurs*.
-5. **Coach** : édite le programme de sa catégorie (onglet unique, semaines S1 à S5) et clique sur *Publier les modifications*.
-6. **Joueur** : coche ses exercices ; la progression est sauvegardée en base et persistante entre appareils/sessions.
+5. **Coach** : édite le programme de sa catégorie — semaine (S1 à S5) puis jour (Lundi à Dimanche + un créneau bonus "Défi") — et clique sur *Publier les modifications*.
+6. **Joueur** : parcourt sa semaine jour par jour, coche ses exercices un par un ou valide toute une séance d'un coup ; la progression est sauvegardée en base et persistante entre appareils/sessions.
 
 ---
 
@@ -68,8 +68,8 @@ sécurité réelle est assurée par les policies RLS définies dans
 
 Le script crée :
 - les tables `tmb_categories`, `tmb_profiles`, `tmb_training_plans`,
-  `tmb_exercises`, `tmb_player_validations` (préfixe `tmb_` car
-  l'instance est partagée entre plusieurs projets) ;
+  `tmb_training_days`, `tmb_exercises`, `tmb_player_validations` (préfixe
+  `tmb_` car l'instance est partagée entre plusieurs projets) ;
 - les policies RLS (lecture publique authentifiée pour le programme,
   écriture réservée admin/coach selon la catégorie, validations privées
   par joueur) ;
@@ -78,6 +78,16 @@ Le script crée :
   catégorie à partir de la date de naissance ;
 - un garde-fou empêchant un utilisateur non-admin de modifier son propre
   rôle ou sa catégorie assignée.
+
+> Le schéma est passé par 3 versions pendant le développement (v1 = ancien
+> système localStorage, v2 = multi-rôles avec un plan par semaine, v3 =
+> retour à une granularité par jour à l'intérieur du plan). `schema.sql`
+> contient les migrations douces v2 → v3 ; si tu avais déjà exécuté une
+> version antérieure du script **sans données de production**, relance-le
+> simplement tel quel. S'il y avait déjà des exercices/validations
+> réels en base, ils sont vidés lors de la migration (impossible de les
+> rattacher automatiquement à un jour précis) — réimporte les données par
+> défaut ensuite depuis l'espace Admin.
 
 ---
 
@@ -90,7 +100,7 @@ Le script crée :
    Admin → bouton **📥 Importer le programme par défaut**.
 3. Ce bouton appelle `seedDatabase()` (`assets/app.js`), qui lit
    `assets/default_program.json` et peuple `tmb_categories`,
-   `tmb_training_plans` et `tmb_exercises`.
+   `tmb_training_plans`, `tmb_training_days` et `tmb_exercises`.
 4. Pour réimporter/écraser plus tard (après modification manuelle du
    JSON par exemple), le même bouton devient **♻️ Réinitialiser les
    données du programme** dès qu'au moins une catégorie existe déjà
@@ -131,17 +141,26 @@ ressources/
 tmb_categories          id, name, min_age, max_age
 tmb_profiles             id (= auth.users.id), email, first_name, last_name,
                           birth_date, role, assigned_category_id
-tmb_training_plans       id, category_id, week_number (1-5), objective, warmup, rpe
-tmb_exercises            id, plan_id, name, sets, duration(s), intensity(1-10),
+tmb_training_plans       id, category_id, week_number (1-5), objective, staff_quote
+tmb_training_days        id, plan_id, day_index (0=Lundi..6=Dimanche, 7=Défi bonus),
+                          label, is_rest, warmup, rpe
+tmb_exercises            id, day_id, name, sets, duration(s), intensity(1-10),
                           reps (texte libre, ex. "3 X 10"), position, video_url
 tmb_player_validations   id, player_id, exercise_id, validated, validation_date
 ```
 
-Un exercice est rattaché à **un plan** = une combinaison (catégorie,
-semaine) ; toutes les catégories partagent la même semaine 1 à 5. Le champ
-`reps` (texte libre) complète `sets`/`duration`/`intensity` pour garder la
-fidélité aux consignes originales qui ne se réduisent pas toujours à un
-seul nombre (ex. "3 X 10", "2 X 30 sec (assisté)").
+Hiérarchie : **catégorie → plan (1 par semaine) → jour (jusqu'à 8 :
+Lundi-Dimanche + Défi) → exercices**. L'échauffement et le RPE sont portés
+par le jour (pas par la semaine entière), comme dans le programme papier
+original où chaque séance a ses propres consignes. Le champ `reps` (texte
+libre) complète `sets`/`duration`/`intensity` pour garder la fidélité aux
+consignes originales qui ne se réduisent pas toujours à un seul nombre
+(ex. "3 X 10", "2 X 30 sec (assisté)").
+
+Il n'existe pas de table de "validation de jour" séparée : un jour est
+considéré comme fait quand tous ses exercices sont validés. Le bouton
+**✅ Valider toute la séance** de la vue Joueur fait un upsert groupé sur
+tous les exercices du jour en un seul aller-retour réseau.
 
 ---
 
@@ -159,13 +178,11 @@ seul nombre (ex. "3 X 10", "2 X 30 sec (assisté)").
   sur les validations) mais pas le compte `auth.users` sous-jacent : ça
   nécessite aussi la clé `service_role` (tableau de bord Supabase ou
   Edge Function).
-- **Un seul plan par semaine et par catégorie**, pas de granularité par
-  jour (contrairement à la v1). Tous les exercices de la semaine
-  (renforcement, cardio, vitesse, mobilité, défi bonus) sont réunis dans
-  une seule liste par catégorie — cohérent avec la vue Joueur demandée
-  (une grande liste de cartes par semaine, sans notion de jour).
 - **U13 et U15 partagent le même contenu par défaut** (voir §5), faute de
   distinction dans les données sources.
+- **Le créneau "Défi" (day_index 7)** est un bonus optionnel, pas un vrai
+  jour de la semaine : il n'apparaît dans la vue Joueur que pour les
+  semaines qui en ont un (S3 et S4 dans les données par défaut).
 
 ---
 

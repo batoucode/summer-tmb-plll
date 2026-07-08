@@ -169,6 +169,13 @@ a { color: var(--blue); }
 .week-tab { min-height: 44px; min-width: 44px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); font-weight: 800; cursor: pointer; }
 .week-tab.active { background: var(--orange); color: #fff; border-color: var(--orange); }
 .week-tab.round { border-radius: 50%; width: 48px; height: 48px; min-width: 48px; padding: 0; }
+.week-tab.is-rest { background: var(--surface-2); color: var(--text-faint); }
+.week-tab.is-empty { border-style: dashed; color: var(--text-faint); }
+#edDayTabs.week-tabs { gap: 6px; }
+#edDayTabs .week-tab { min-width: 40px; padding: 8px 10px; font-size: 0.85rem; }
+
+.checkbox-row { display: flex; align-items: center; gap: 10px; font-weight: 600; margin: 4px 0 16px; cursor: pointer; }
+.checkbox-row input { width: 20px; height: 20px; }
 
 .exo-edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .exo-edit-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
@@ -187,6 +194,27 @@ a { color: var(--blue); }
 }
 .progress-labels .title { font-weight: 800; }
 .progress-labels .sub { color: var(--text-dim); font-size: 0.9rem; margin-top: 2px; }
+
+/* ---------- Player: day list (aperçu semaine) ---------- */
+.day-list { display: flex; flex-direction: column; gap: 12px; }
+.day-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: var(--surface); border: none; border-radius: var(--radius);
+  padding: 18px 20px; box-shadow: var(--shadow); cursor: pointer; text-align: left;
+  font: inherit; color: var(--text); min-height: 64px; width: 100%;
+}
+.day-card:disabled { cursor: default; opacity: 0.75; }
+.day-card.done { border: 2px solid var(--green); }
+.day-name { font-weight: 800; }
+.day-session { color: var(--text-dim); font-size: 0.9rem; margin-top: 2px; }
+.status-pill {
+  padding: 6px 14px; border-radius: 999px; font-weight: 800; font-size: 0.82rem; flex-shrink: 0;
+  background: var(--surface-2); color: var(--text-dim);
+}
+.status-pill.done { background: var(--green-dim); color: var(--green); }
+.status-pill.partial { background: var(--orange-dim); color: var(--orange); }
+.status-pill.todo { background: var(--surface-2); color: var(--text-dim); }
+.status-pill.rest { background: var(--surface-2); color: var(--text-faint); }
 
 /* ---------- Player: exercise cards ---------- */
 .player-exo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
