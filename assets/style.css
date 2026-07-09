@@ -334,29 +334,29 @@ a { color: var(--tmb-red); }
 .status-pill.rest { background: var(--surface-2); color: var(--text-faint); }
 
 /* ---------- Player: exercise cards ---------- */
-.player-exo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; }
+.player-exo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .player-exo-card {
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 22px;
+  padding: 12px 14px;
   box-shadow: var(--shadow);
   border: 2px solid transparent;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .player-exo-card.is-done { background: var(--green-dim); border-color: var(--green); }
-.pe-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.pe-name { font-weight: 800; font-size: 1.08rem; }
+.pe-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pe-name { font-weight: 800; font-size: 1.02rem; }
 .pe-check {
   border: none; background: var(--surface-2); border-radius: var(--radius);
-  width: 52px; height: 52px; font-size: 26px; cursor: pointer; flex-shrink: 0;
+  width: 44px; height: 44px; font-size: 20px; cursor: pointer; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.pe-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.pe-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pe-chip {
-  background: var(--surface-2); border-radius: 999px; padding: 6px 12px;
-  font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
+  background: var(--surface-2); border-radius: 999px; padding: 4px 10px;
+  font-size: 0.8rem; font-weight: 700; color: var(--text-dim);
 }
-.pe-video { display: inline-block; margin-top: 14px; font-weight: 700; }
+.pe-video { display: inline-block; margin-top: 8px; font-weight: 700; font-size: 0.92rem; }
 
 /* ---------- Error boundary (voir assets/js/02-error-boundary.js) ---------- */
 .error-card { border: 1.5px solid var(--red-dim); }
