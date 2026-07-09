@@ -69,6 +69,15 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+/* Ambiance "sombre et intense" (plaquette design) : lueurs rouges
+   diffuses sur le fond noir, sans gêner la lecture du contenu. */
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(ellipse 900px 480px at 105% -8%, rgba(200, 16, 46, 0.20), transparent 60%),
+    radial-gradient(ellipse 700px 480px at -10% 105%, rgba(200, 16, 46, 0.14), transparent 55%),
+    var(--bg);
+  background-attachment: fixed;
+}
 button, input, select, textarea { font-family: inherit; font-size: 1rem; }
 h1, h2, h3, p { margin: 0; }
 a { color: var(--tmb-red); }
@@ -115,6 +124,8 @@ a { color: var(--tmb-red); }
 .btn-primary:hover { background: var(--tmb-red-dark); }
 .btn-primary:active { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.6; cursor: default; }
+:root[data-theme="dark"] .btn-primary:not(:disabled) { box-shadow: 0 6px 20px rgba(200, 16, 46, 0.4); }
+:root[data-theme="dark"] .btn-primary:not(:disabled):hover { box-shadow: 0 8px 26px rgba(200, 16, 46, 0.55); }
 .btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); }
 .btn-secondary:hover { border-color: var(--blue); color: var(--blue); }
 .btn-ghost { background: transparent; color: var(--text-dim); border: 1.5px solid var(--border); min-height: 40px; padding: 8px 16px; }
@@ -161,12 +172,21 @@ a { color: var(--tmb-red); }
 
 /* ---------- Auth (page de connexion / inscription — thème rouge TMB) ---------- */
 .auth-wrap {
+  position: relative; overflow: hidden;
   min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--pad);
   background:
     radial-gradient(circle at 15% 0%, rgba(255, 77, 94, 0.35), transparent 55%),
     linear-gradient(160deg, var(--tmb-red) 0%, var(--tmb-red-dark) 75%);
 }
+/* Fines lignes diagonales lumineuses (clin d'œil à la plaquette design) —
+   discrètes, ne gênent jamais la lecture du formulaire. */
+.auth-wrap::before {
+  content: ""; position: absolute; inset: -25% -25%;
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.06) 0 2px, transparent 2px 64px);
+  pointer-events: none;
+}
 .auth-card {
+  position: relative; z-index: 1;
   width: 100%; max-width: 440px;
   background: var(--surface);
   border-radius: 24px;
@@ -240,16 +260,25 @@ a { color: var(--tmb-red); }
 .exo-edit-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
 
 /* ---------- Player: progress ---------- */
-.progress-card { display: flex; align-items: center; gap: 20px; }
+.progress-card {
+  display: flex; align-items: center; gap: 20px;
+}
+:root[data-theme="dark"] .progress-card {
+  background: linear-gradient(135deg, var(--surface) 0%, #26121a 100%);
+  border: 1px solid rgba(200, 16, 46, 0.28);
+}
 .progress-ring {
   --pct: 0;
-  width: 84px; height: 84px; border-radius: 50%; flex-shrink: 0;
-  background: conic-gradient(var(--green) calc(var(--pct) * 1%), var(--border) 0);
+  width: 108px; height: 108px; border-radius: 50%; flex-shrink: 0;
+  background: conic-gradient(var(--tmb-red) calc(var(--pct) * 1%), var(--border) 0);
   display: flex; align-items: center; justify-content: center;
+  transition: box-shadow 0.2s ease;
 }
+:root[data-theme="dark"] .progress-ring { box-shadow: 0 0 28px rgba(200, 16, 46, 0.45); }
 .progress-ring-inner {
-  width: 66px; height: 66px; border-radius: 50%; background: var(--surface);
-  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem;
+  width: 84px; height: 84px; border-radius: 50%; background: var(--surface);
+  display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.35rem;
+  color: var(--tmb-red);
 }
 .progress-labels .title { font-weight: 800; }
 .progress-labels .sub { color: var(--text-dim); font-size: 0.9rem; margin-top: 2px; }
