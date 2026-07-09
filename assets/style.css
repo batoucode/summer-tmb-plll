@@ -41,6 +41,12 @@
   --shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.10);
   --pad: 24px;
+
+  /* Indique au navigateur que la page gère elle-même le thème clair :
+     sans ça, certains mobiles (Chrome Android en tête) continuent
+     d'appliquer leur propre fond clair natif sur les champs de saisie
+     (suggestions/auto-remplissage), par-dessus nos couleurs. */
+  color-scheme: light;
 }
 
 :root[data-theme="dark"] {
@@ -58,6 +64,7 @@
   --orange-dim: #3a2410;
   --teal-dim: #0f2e2b;
   --red-dim: #3a141c;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -163,28 +170,34 @@ a { color: var(--tmb-red); }
   background: var(--surface-2);
   color: var(--text);
   min-height: 48px;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .field textarea { min-height: 64px; resize: vertical; }
 .field input::placeholder, .field textarea::placeholder { color: var(--text-faint); opacity: 1; }
 .field input:focus, .field select:focus, .field textarea:focus {
-  outline: none; border-color: var(--tmb-red); background: var(--surface);
+  outline: none; border-color: var(--tmb-red);
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Auto-remplissage / suggestions du navigateur (Chrome Android en
+   particulier) : sans ce correctif, le champ passe à un fond clair
+   imposé par le navigateur alors que le texte reste clair en thème
+   sombre — quasi illisible. On force nos propres couleurs par-dessus,
+   avec !important car le navigateur applique les siennes en priorité. */
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus,
+.field input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset !important;
+  box-shadow: 0 0 0 1000px var(--surface-2) inset !important;
+  caret-color: var(--text) !important;
+  transition: background-color 9999s ease-in-out 0s;
 }
 .field-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .form-error { color: var(--red); font-size: 0.9rem; min-height: 1.2em; }
-
-/* Auto-remplissage du navigateur (ex. Chrome mobile) : sans ce correctif,
-   le champ passe à un fond blanc imposé par le navigateur alors que le
-   texte reste clair en thème sombre — quasi illisible. On force nos
-   propres couleurs de thème par-dessus. */
-.field input:-webkit-autofill,
-.field input:-webkit-autofill:hover,
-.field input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--text);
-  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
-  box-shadow: 0 0 0 1000px var(--surface-2) inset;
-  caret-color: var(--text);
-  transition: background-color 9999s ease-in-out 0s;
-}
 
 /* ---------- Auth (page de connexion / inscription — thème rouge TMB) ---------- */
 .auth-wrap {
