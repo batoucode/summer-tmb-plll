@@ -44,15 +44,16 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #10131a;
-  --surface: #1b1f2a;
-  --surface-2: #232838;
-  --border: #313a52;
-  --text: #f1f5f9;
-  --text-dim: #cbd5e1;
-  --text-faint: #8b93a7;
-  --shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.55);
+  /* Noir neutre (pas de teinte bleutée), fidèle à la plaquette design. */
+  --bg: #0a0a0b;
+  --surface: #18181a;
+  --surface-2: #222224;
+  --border: #38383b;
+  --text: #f5f5f5;
+  --text-dim: #c8c8cb;
+  --text-faint: #8f8f93;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.65);
   --green-dim: #10301f;
   --orange-dim: #3a2410;
   --teal-dim: #0f2e2b;
