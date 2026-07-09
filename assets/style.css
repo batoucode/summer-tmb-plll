@@ -165,11 +165,26 @@ a { color: var(--tmb-red); }
   min-height: 48px;
 }
 .field textarea { min-height: 64px; resize: vertical; }
+.field input::placeholder, .field textarea::placeholder { color: var(--text-faint); opacity: 1; }
 .field input:focus, .field select:focus, .field textarea:focus {
-  outline: none; border-color: var(--tmb-red); background: #fff;
+  outline: none; border-color: var(--tmb-red); background: var(--surface);
 }
 .field-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .form-error { color: var(--red); font-size: 0.9rem; min-height: 1.2em; }
+
+/* Auto-remplissage du navigateur (ex. Chrome mobile) : sans ce correctif,
+   le champ passe à un fond blanc imposé par le navigateur alors que le
+   texte reste clair en thème sombre — quasi illisible. On force nos
+   propres couleurs de thème par-dessus. */
+.field input:-webkit-autofill,
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  caret-color: var(--text);
+  transition: background-color 9999s ease-in-out 0s;
+}
 
 /* ---------- Auth (page de connexion / inscription — thème rouge TMB) ---------- */
 .auth-wrap {
