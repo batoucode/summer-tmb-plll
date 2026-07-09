@@ -36,8 +36,8 @@
   --text-faint: #94a3b8;
 
   /* Échelle d'espacement / rayons / ombres */
-  --radius: 18px;
-  --radius-sm: 12px;
+  --radius: 3px;
+  --radius-sm: 3px;
   --shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.10);
   --pad: 24px;
@@ -190,7 +190,7 @@ a { color: var(--tmb-red); }
   position: relative; z-index: 1;
   width: 100%; max-width: 440px;
   background: var(--surface);
-  border-radius: 24px;
+  border-radius: var(--radius);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   padding: 40px 34px;
   text-align: center;
@@ -199,7 +199,7 @@ a { color: var(--tmb-red); }
 .auth-card h1 { font-size: 1.5rem; font-weight: 900; line-height: 1.15; color: var(--tmb-red); letter-spacing: -0.01em; }
 .auth-sub { color: var(--text-dim); margin: 12px 0 26px; font-size: 0.92rem; line-height: 1.5; }
 .auth-tabs { display: flex; background: var(--surface-2); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 22px; }
-.auth-tab { flex: 1; border: none; background: transparent; padding: 10px; border-radius: 8px; font-weight: 700; color: var(--text-dim); cursor: pointer; min-height: 44px; }
+.auth-tab { flex: 1; border: none; background: transparent; padding: 10px; border-radius: var(--radius); font-weight: 700; color: var(--text-dim); cursor: pointer; min-height: 44px; }
 .auth-tab.active { background: var(--tmb-red); color: #fff; }
 .auth-form { text-align: left; }
 .auth-form .field input:focus { border-color: var(--tmb-red); }
@@ -209,7 +209,7 @@ a { color: var(--tmb-red); }
 .boot-error { padding: 40px; text-align: center; color: var(--red); font-weight: 700; }
 
 @media (max-width: 480px) {
-  .auth-card { padding: 32px 22px; border-radius: 18px; }
+  .auth-card { padding: 32px 22px; }
   .auth-logo-img { height: 52px; }
 }
 
@@ -228,7 +228,7 @@ a { color: var(--tmb-red); }
 .data-table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); }
 .data-table th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-faint); }
-.data-table select { min-height: 40px; border-radius: 8px; border: 1.5px solid var(--border); padding: 6px 10px; background: var(--surface-2); }
+.data-table select { min-height: 40px; border-radius: var(--radius); border: 1.5px solid var(--border); padding: 6px 10px; background: var(--surface-2); }
 .data-table tr:last-child td { border-bottom: none; }
 
 /* ---------- Program editor ---------- */
@@ -319,7 +319,7 @@ a { color: var(--tmb-red); }
 .pe-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pe-name { font-weight: 800; font-size: 1.08rem; }
 .pe-check {
-  border: none; background: var(--surface-2); border-radius: 12px;
+  border: none; background: var(--surface-2); border-radius: var(--radius);
   width: 52px; height: 52px; font-size: 26px; cursor: pointer; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
