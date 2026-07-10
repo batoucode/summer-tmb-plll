@@ -449,18 +449,23 @@ a { color: var(--tmb-red); }
   font-weight: 700; font-size: 0.9rem; padding: 10px 18px; border-radius: 999px; cursor: pointer;
   min-height: 44px;
 }
-.section-nav-item .sn-icon { font-size: 1.1rem; line-height: 1; }
+.section-nav-item .sn-icon-wrap { display: flex; align-items: center; justify-content: center; }
+.section-nav-item .sn-icon svg { display: block; width: 20px; height: 20px; }
 /* Onglet actif : gris en thème clair, rouge TMB en thème sombre (demande
    explicite : "noir et rouge theme dark et blanc et gris pour le light"). */
 .section-nav-item.active { color: var(--text); background: var(--gloss), var(--border); }
 :root[data-theme="dark"] .section-nav-item.active { color: #fff; background: var(--gloss), var(--tmb-red); border-color: var(--tmb-red); }
 
 @media (max-width: 640px) {
-  body.has-section-nav #appRoot { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  body.has-section-nav #appRoot { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
 
+  /* En dessous de 640px : barre flottante icônes seules, avec un badge
+     circulaire derrière l'icône active (inspiré de la maquette fournie :
+     fond sombre, pastille pleine derrière l'icône active uniquement,
+     pas toute la largeur du bouton). */
   .section-nav {
     position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    z-index: 30; max-width: none; margin: 0; padding: 6px;
+    z-index: 30; max-width: none; margin: 0; padding: 8px 6px;
     justify-content: space-around; gap: 2px;
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -468,11 +473,16 @@ a { color: var(--tmb-red); }
     box-shadow: var(--shadow-lg);
   }
   .section-nav-item {
-    flex: 1; flex-direction: column; justify-content: center; gap: 2px;
-    border: none; background: transparent;
-    font-size: 0.62rem; padding: 8px 4px; min-height: 50px;
+    flex: 1; flex-direction: column; justify-content: center; gap: 0;
+    border: none; background: transparent; padding: 4px 2px; min-height: 52px;
   }
-  .section-nav-item .sn-icon { font-size: 1.3rem; }
-  .section-nav-item.active { border-color: transparent; }
-  :root[data-theme="dark"] .section-nav-item.active { border-color: transparent; }
+  .section-nav-item .sn-icon-wrap {
+    width: 42px; height: 42px; border-radius: 50%;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .section-nav-item .sn-icon svg { width: 22px; height: 22px; }
+  .section-nav-item .sn-label { display: none; }
+  .section-nav-item.active { background: none; border-color: transparent; color: var(--text-faint); }
+  .section-nav-item.active .sn-icon-wrap { background: var(--border); color: var(--text); }
+  :root[data-theme="dark"] .section-nav-item.active .sn-icon-wrap { background: rgba(200, 16, 46, 0.18); color: var(--tmb-red); }
 }
