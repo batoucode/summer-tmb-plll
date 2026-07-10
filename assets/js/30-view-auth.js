@@ -7,13 +7,17 @@
    ============================================================ */
 (function () {
   "use strict";
-  const { $, $$, toast } = window.TMB.core;
+  const { $, $$, toast, escapeHtml } = window.TMB.core;
 
   let authMode = "login"; // "login" | "signup"
+  let authCategories = [];
   const TMB_LOGO_URL = "https://toursmetropolebasket.com/wp-content/themes/utbm/build/svg/logoUTBM.svg";
 
-  function renderAuthView() {
+  async function renderAuthView() {
     const root = $("#view-auth");
+    if (authMode === "signup" && authCategories.length === 0) {
+      try { authCategories = await window.TMB.data.loadCategories(); } catch (e) { authCategories = []; }
+    }
     root.innerHTML = `
       <div class="auth-wrap">
         <div class="auth-card">
@@ -39,14 +43,23 @@
                 </div>
               </div>
               <div class="field">
-                <label>Date de naissance</label>
-                <input type="date" id="fBirthDate" required>
+                <label>Catégorie</label>
+                <select id="fCategory" required>
+                  <option value="" disabled selected>Choisis ta catégorie</option>
+                  ${authCategories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
+                </select>
               </div>
             ` : ""}
             <div class="field">
-              <label>Email</label>
-              <input type="email" id="fEmail" required>
+              <label>Identifiant de connexion</label>
+              <input type="text" id="fUsername" pattern="[a-zA-Z0-9_.-]{3,24}" required>
             </div>
+            ${authMode === "signup" ? `
+              <div class="field">
+                <label>Email (optionnel)</label>
+                <input type="email" id="fEmail">
+              </div>
+            ` : ""}
             <div class="field">
               <label>Mot de passe</label>
               <input type="password" id="fPassword" minlength="6" required>
@@ -56,7 +69,7 @@
               ${authMode === "signup" ? "Créer mon compte" : "Se connecter"}
             </button>
           </form>
-          ${authMode === "signup" ? `<p class="auth-hint">Ta catégorie (U13/U15/U18/NM3) est déduite automatiquement de ta date de naissance.</p>` : ""}
+          ${authMode === "signup" ? `<p class="auth-hint">Choisis ton identifiant de connexion (3 à 24 caractères) : c'est lui qui te servira à te connecter, pas ton email. Un administrateur ou toi-même (menu Paramètres) pourrez le modifier plus tard.</p>` : ""}
         </div>
       </div>
     `;
@@ -67,21 +80,22 @@
       const submitBtn = $("#authSubmit", root);
       errEl.textContent = "";
       submitBtn.disabled = true;
-      const email = $("#fEmail", root).value.trim();
+      const username = $("#fUsername", root).value.trim();
       const password = $("#fPassword", root).value;
       try {
         if (authMode === "signup") {
           await window.TMB.auth.signUp({
-            email, password,
+            username, password,
             firstName: $("#fFirstName", root).value.trim(),
             lastName: $("#fLastName", root).value.trim(),
-            birthDate: $("#fBirthDate", root).value
+            categoryId: Number($("#fCategory", root).value),
+            email: $("#fEmail", root).value.trim()
           });
           toast("Compte créé. Si la confirmation par e-mail est activée, vérifie ta boîte mail avant de te connecter.");
           authMode = "login";
           renderAuthView();
         } else {
-          await window.TMB.auth.signIn(email, password);
+          await window.TMB.auth.signIn(username, password);
         }
       } catch (err) {
         errEl.textContent = translateAuthError(err);
@@ -93,8 +107,9 @@
 
   function translateAuthError(err) {
     const msg = String((err && err.message) || err);
-    if (/already registered|already exists/i.test(msg)) return "Un compte existe déjà avec cet email.";
-    if (/invalid login credentials/i.test(msg)) return "Email ou mot de passe incorrect.";
+    if (/username.*format|tmb_profiles_username_format/i.test(msg)) return "Identifiant invalide (3 à 24 caractères, lettres/chiffres/._- uniquement).";
+    if (/duplicate|already registered|already exists|tmb_profiles_username_lower_idx/i.test(msg)) return "Cet identifiant est déjà pris.";
+    if (/invalid login credentials/i.test(msg)) return "Identifiant ou mot de passe incorrect.";
     if (/password/i.test(msg) && /short|least/i.test(msg)) return "Mot de passe trop court (6 caractères minimum).";
     return msg || "Une erreur est survenue.";
   }

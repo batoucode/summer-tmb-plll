@@ -11,7 +11,7 @@
   const { $ } = window.TMB.core;
 
   function showView(name) {
-    ["auth", "admin", "coach", "player"].forEach((v) => {
+    ["auth", "admin", "coach", "player", "settings"].forEach((v) => {
       $("#view-" + v).classList.toggle("hidden", v !== name);
     });
     $("#topbar").classList.toggle("hidden", name === "auth");
@@ -24,6 +24,8 @@
     $("#topbarUserName").textContent = fullName(profile);
     $("#topbarUserRole").textContent = ROLE_LABELS[profile.role] || profile.role;
     $("#topbarUserRole").className = "role-badge role-" + profile.role;
+    const settingsBtn = $("#settingsBtn");
+    if (settingsBtn) settingsBtn.classList.toggle("hidden", profile.role === "admin");
   }
 
   Object.assign(window.TMB.nav, { showView, renderTopbar });

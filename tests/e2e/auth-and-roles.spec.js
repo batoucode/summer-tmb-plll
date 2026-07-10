@@ -12,7 +12,8 @@ test.describe("Écran de connexion", () => {
     await expect(page.locator(".auth-card h1")).toContainText("Summer 2026");
 
     await page.click('.auth-tab[data-mode="signup"]');
-    await expect(page.locator("#fBirthDate")).toBeVisible();
+    await expect(page.locator("#fUsername")).toBeVisible();
+    await expect(page.locator("#fCategory")).toBeVisible();
     await expect(page.locator("#fFirstName")).toBeVisible();
   });
 });

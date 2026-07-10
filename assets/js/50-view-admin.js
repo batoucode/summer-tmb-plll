@@ -5,7 +5,7 @@
    ============================================================ */
 (function () {
   "use strict";
-  const { $, $$, el, escapeHtml, toast, ageFromBirthDate, fullName, ROLE_LABELS } = window.TMB.core;
+  const { $, $$, el, escapeHtml, toast, fullName, ROLE_LABELS } = window.TMB.core;
   const data = window.TMB.data;
 
   let adminTab = "users";
@@ -46,7 +46,7 @@
       <div id="addPlayerForm" class="card hidden"></div>
       <div class="table-wrap">
         <table class="data-table">
-          <thead><tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Âge</th><th>Catégorie</th><th>Rôle</th><th></th></tr></thead>
+          <thead><tr><th>Nom</th><th>Prénom</th><th>Identifiant</th><th>Email</th><th>Catégorie</th><th>Rôle</th><th></th></tr></thead>
           <tbody id="usersBody"></tbody>
         </table>
       </div>
@@ -58,8 +58,8 @@
         <tr data-id="${u.id}">
           <td>${escapeHtml(u.last_name || "")}</td>
           <td>${escapeHtml(u.first_name || "")}</td>
+          <td><input type="text" class="rowUsername" value="${escapeHtml(u.username || "")}"></td>
           <td>${escapeHtml(u.email || "")}</td>
-          <td>${ageFromBirthDate(u.birth_date) ?? "—"}</td>
           <td>
             <select class="rowCategory">
               ${catOptions()}
@@ -90,6 +90,18 @@
           toast("Catégorie mise à jour.");
         } catch (err) { toast(err.message || String(err), true); }
       });
+      $(".rowUsername", row).addEventListener("blur", async (e) => {
+        const val = e.target.value.trim();
+        if (val === (u.username || "")) return;
+        try {
+          await data.updateProfileFields(u.id, { username: val });
+          u.username = val;
+          toast("Identifiant mis à jour.");
+        } catch (err) {
+          e.target.value = u.username || "";
+          toast(err.message || String(err), true);
+        }
+      });
       $(".btnDeleteUser", row).addEventListener("click", async () => {
         if (!confirm(`Supprimer le compte de ${fullName(u)} ?\n\n(Seul le profil applicatif est supprimé ; le compte d'authentification doit être purgé côté tableau de bord Supabase — voir docs/SECURITY.md.)`)) return;
         try {
@@ -110,19 +122,25 @@
           <div class="field"><label>Nom</label><input type="text" id="npLast"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label>Date de naissance</label><input type="date" id="npBirth"></div>
-          <div class="field"><label>Email</label><input type="email" id="npEmail"></div>
+          <div class="field"><label>Identifiant de connexion</label><input type="text" id="npUsername" pattern="[a-zA-Z0-9_.-]{3,24}"></div>
+          <div class="field">
+            <label>Catégorie</label>
+            <select id="npCategory">${catOptions()}</select>
+          </div>
         </div>
+        <div class="field"><label>Email (optionnel)</label><input type="email" id="npEmail"></div>
         <div class="field"><label>Mot de passe temporaire</label><input type="text" id="npPass" placeholder="min. 6 caractères"></div>
-        <p class="auth-hint">Aucun envoi d'e-mail automatique n'est possible depuis une app statique sans clé service_role. Communique ce mot de passe temporaire directement à la personne concernée ; elle pourra le changer plus tard.</p>
+        <p class="auth-hint">Aucun envoi d'e-mail automatique n'est possible depuis une app statique sans clé service_role. Communique l'identifiant et ce mot de passe temporaire directement à la personne concernée ; elle pourra les changer plus tard depuis Paramètres.</p>
         <button class="btn-primary" id="npSubmit">Créer le compte</button>
       `;
       $("#npSubmit", box).addEventListener("click", async () => {
         try {
+          const catVal = $("#npCategory", box).value;
           await window.TMB.auth.adminCreateAccount({
             firstName: $("#npFirst", box).value.trim(),
             lastName: $("#npLast", box).value.trim(),
-            birthDate: $("#npBirth", box).value,
+            username: $("#npUsername", box).value.trim(),
+            categoryId: catVal ? Number(catVal) : null,
             email: $("#npEmail", box).value.trim(),
             password: $("#npPass", box).value
           });

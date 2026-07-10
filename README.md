@@ -39,20 +39,24 @@ L'app a 3 types de comptes :
 | 🧑‍🏫 **Coach** | Modifie le programme de **sa seule** catégorie (objectif de la semaine, échauffement, exercices) |
 | 🏀 **Joueur** | Voit le programme de sa catégorie, coche ses séances, suit sa progression |
 
-La **catégorie** (U13, U15, U18 ou NM3) d'un joueur est calculée
-automatiquement à partir de sa date de naissance, à son inscription.
+La **catégorie** (U13, U15, U18 ou NM3) d'un joueur est choisie
+directement à l'inscription, et modifiable ensuite (par la personne
+elle-même depuis *Paramètres*, ou par l'admin).
 
 ---
 
 ## 3. Comment ça marche, pas à pas
 
-1. **On s'inscrit** : email, mot de passe, prénom, nom, date de
-   naissance. Un compte "Joueur" est créé automatiquement, avec la
-   bonne catégorie.
-2. **On se connecte** : l'app affiche directement le bon écran selon le
-   type de compte (Admin / Coach / Joueur).
+1. **On s'inscrit** : identifiant de connexion, mot de passe, prénom,
+   nom, catégorie (email optionnel). Un compte "Joueur" est créé
+   automatiquement, avec la catégorie choisie.
+2. **On se connecte** avec son identifiant et son mot de passe : l'app
+   affiche directement le bon écran selon le type de compte (Admin /
+   Coach / Joueur).
 3. **L'admin** peut transformer un joueur en coach et lui assigner une
-   catégorie, depuis l'onglet *Utilisateurs*.
+   catégorie, depuis l'onglet *Utilisateurs*. **Le coach et le joueur**
+   peuvent modifier leur propre identifiant, catégorie et mot de passe
+   depuis le menu *Paramètres* (topbar).
 4. **Le coach** choisit une semaine, puis un jour, remplit les
    informations (objectif, échauffement, liste d'exercices) et clique
    sur *Publier*.
@@ -123,7 +127,7 @@ Ce README reste volontairement simple. Pour le détail technique :
 | Aspect | Détail |
 |---|---|
 | Frontend | HTML/CSS/JavaScript, aucun framework, aucune étape de build |
-| Authentification | Supabase Auth (email + mot de passe) |
+| Authentification | Supabase Auth, connexion par identifiant (email interne optionnel/technique) |
 | Base de données | Supabase Postgres, avec des règles de sécurité au niveau de chaque ligne (RLS) |
 | Hébergement | Site statique — n'importe quel serveur de fichiers convient |
 
@@ -136,6 +140,9 @@ Ce README reste volontairement simple. Pour le détail technique :
 - Supprimer un compte depuis l'app ne supprime que son profil, pas son
   accès de connexion (nécessite une action côté tableau de bord
   Supabase).
+- L'admin ne peut pas réinitialiser le mot de passe d'un autre compte
+  depuis l'app — la personne doit le changer elle-même (*Paramètres*),
+  ou l'admin passe par le tableau de bord Supabase.
 - Les catégories U13 et U15 partagent le même programme par défaut.
 
 Détails complets dans `docs/SECURITY.md`.

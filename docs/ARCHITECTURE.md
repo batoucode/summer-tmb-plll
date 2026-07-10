@@ -15,7 +15,7 @@ bundler, aucun build) déployé tel quel. Toutes les données passent par
 `@supabase/supabase-js` chargé depuis un CDN.
 
 Depuis le 08/07/2026, le code JS n'est plus un seul fichier
-`assets/app.js` mais **14 modules indépendants** sous `assets/js/`,
+`assets/app.js` mais **15 modules indépendants** sous `assets/js/`,
 chargés comme autant de balises `<script>` classiques (pas de modules
 ES — voir §4 pour la justification). L'ancien fichier unique est
 archivé dans `legacy/app.monolithic.js`.
@@ -46,6 +46,7 @@ assets/
     50-view-admin.js                 Espace Admin (utilisateurs + programmes)
     60-view-coach.js                 Espace Coach
     70-view-player.js                Espace Joueur (semaine, jour, validation)
+    80-view-settings.js              Espace Paramètres (coach/joueur) : identifiant, catégorie, mot de passe
     90-bootstrap.js                  Démarrage, session, dispatch par rôle
     README.md                        Résumé condensé de cette page, au plus près du code
   style.css                          Design system "Sportif & Aéré" — une seule feuille,
@@ -68,7 +69,7 @@ supabase/
 legacy/
   app.monolithic.js                  Ancienne version pré-découpage (archivée, non chargée)
   data.js, cloud.js                  Version v1 (localStorage, sans compte)
-index.html                          Coquille HTML + liste ordonnée des 14 scripts
+index.html                          Coquille HTML + liste ordonnée des 15 scripts
 README.md                           Présentation générale, grand public
 ```
 
@@ -92,11 +93,11 @@ window.TMB = {
     categories: []
   },
   supabase: { client: null, ready: false },
-  auth: {},              // signUp, signIn, signOut, adminCreateAccount
-  data: {},               // tout le CRUD + seedDatabase
+  auth: {},              // signUp, signIn, signOut, adminCreateAccount, updatePassword
+  data: {},               // tout le CRUD + seedDatabase (dont updateProfileFields, checkUsernameAvailable)
   nav: {},                 // showView, renderTopbar
   components: { programEditor: {} },  // mount() partagé admin/coach
-  views: { auth: {}, admin: {}, coach: {}, player: {} },
+  views: { auth: {}, admin: {}, coach: {}, player: {}, settings: {} },
   bootstrap: {}                          // handleSessionChange, init
 };
 ```
@@ -135,11 +136,11 @@ directement ce que l'app faisait déjà avant ce découpage.
 
 ### Le mécanisme
 
-1. **Chargement** : 14 balises `<script>` séparées. Si un fichier a une
+1. **Chargement** : 15 balises `<script>` séparées. Si un fichier a une
    erreur de syntaxe ou lève une exception à son chargement, les
    fichiers suivants se chargent quand même.
-2. **Rendu** : chaque vue top-level (`auth`, `admin`, `coach`, `player`)
-   est rendue via `TMB.errors.safeRender(moduleName, () => ...,
+2. **Rendu** : chaque vue top-level (`auth`, `admin`, `coach`, `player`,
+   `settings`) est rendue via `TMB.errors.safeRender(moduleName, () => ...,
    containerSelector)` dans `90-bootstrap.js`. Une erreur (synchrone ou
    promesse rejetée) à l'intérieur affiche une carte d'erreur **dans le
    conteneur de cette vue uniquement** (`.error-card`, voir
@@ -168,12 +169,14 @@ flowchart LR
   compEditor --> viewAdmin[50-view-admin]
   compEditor --> viewCoach[60-view-coach]
   data --> viewPlayer[70-view-player]
+  data --> viewSettings[80-view-settings]
   err --> boot[90-bootstrap]
   nav --> boot
   viewAuth --> boot
   viewAdmin --> boot
   viewCoach --> boot
   viewPlayer --> boot
+  viewSettings --> boot
 ```
 
 ### Piège technique évité : l'appel en "thunk"

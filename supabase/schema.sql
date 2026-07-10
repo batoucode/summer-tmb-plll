@@ -48,6 +48,49 @@ create index if not exists tmb_profiles_role_idx on public.tmb_profiles (role);
 create index if not exists tmb_profiles_category_idx on public.tmb_profiles (assigned_category_id);
 
 -- ------------------------------------------------------------
+-- 2bis. IDENTIFIANT DE CONNEXION (remplace l'email comme moyen de
+--    connexion — l'email reste stocké mais devient optionnel/informatif).
+--    Unique insensible à la casse, format simple (lettres/chiffres/
+--    ._- , 3 à 24 caractères).
+-- ------------------------------------------------------------
+alter table public.tmb_profiles add column if not exists username text;
+
+create unique index if not exists tmb_profiles_username_lower_idx
+  on public.tmb_profiles (lower(username));
+
+alter table public.tmb_profiles drop constraint if exists tmb_profiles_username_format;
+alter table public.tmb_profiles add constraint tmb_profiles_username_format
+  check (username is null or username ~ '^[a-zA-Z0-9_.-]{3,24}$');
+
+-- Backfill des comptes déjà existants (créés avant l'ajout de la colonne) :
+-- identifiant dérivé de prénom+nom, suffixe numérique en cas de collision.
+-- Idempotent : ne touche que les lignes où username est encore null.
+do $$
+declare
+  r record;
+  base text;
+  candidate text;
+  n int;
+begin
+  for r in select id, first_name, last_name from public.tmb_profiles where username is null order by created_at loop
+    base := regexp_replace(lower(coalesce(r.first_name, '') || coalesce(r.last_name, '')), '[^a-z0-9]', '', 'g');
+    if base = '' then
+      base := 'joueur';
+    end if;
+    base := left(base, 20);
+    candidate := base;
+    n := 1;
+    while exists (select 1 from public.tmb_profiles where lower(username) = candidate and id <> r.id) loop
+      n := n + 1;
+      candidate := left(base, 20) || n::text;
+    end loop;
+    update public.tmb_profiles set username = candidate where id = r.id;
+  end loop;
+end $$;
+
+alter table public.tmb_profiles alter column username set not null;
+
+-- ------------------------------------------------------------
 -- 3. TRAINING PLANS — un plan = une catégorie + une semaine (1 à 5)
 --    Contient uniquement les infos valables pour toute la semaine ;
 --    l'échauffement et le RPE, spécifiques à chaque séance, sont
@@ -180,30 +223,50 @@ language sql stable as $$
 $$;
 
 -- ============================================================
+-- CONNEXION PAR IDENTIFIANT
+-- Supabase Auth reste géré par email en interne ; ces fonctions
+-- permettent au client (non connecté, donc "anon") de faire la
+-- correspondance identifiant → email avant d'appeler
+-- signInWithPassword, et de vérifier la disponibilité d'un identifiant
+-- à l'inscription. SECURITY DEFINER + retour minimal (pas de ligne
+-- complète) pour ne pas exposer tmb_profiles à anon.
+-- ============================================================
+create or replace function public.tmb_email_for_username(p_username text)
+returns text
+language sql stable security definer set search_path = public as $$
+  select email from public.tmb_profiles where lower(username) = lower(p_username) limit 1;
+$$;
+revoke all on function public.tmb_email_for_username(text) from public;
+grant execute on function public.tmb_email_for_username(text) to anon, authenticated;
+
+create or replace function public.tmb_username_available(p_username text)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select not exists (select 1 from public.tmb_profiles where lower(username) = lower(p_username));
+$$;
+revoke all on function public.tmb_username_available(text) from public;
+grant execute on function public.tmb_username_available(text) to anon, authenticated;
+
+-- ============================================================
 -- CRÉATION AUTOMATIQUE DU PROFIL AU SIGNUP
--- Lit first_name / last_name / birth_date depuis les métadonnées
--- passées à supabase.auth.signUp({ options: { data: {...} } }).
--- Rôle toujours "player" à la création ; l'admin promeut ensuite.
+-- Lit username / first_name / last_name / assigned_category_id depuis
+-- les métadonnées passées à supabase.auth.signUp({ options: { data: {...} } }).
+-- La catégorie est choisie directement par l'utilisateur à l'inscription
+-- (n'est plus déduite de la date de naissance). Rôle toujours "player"
+-- à la création ; l'admin promeut ensuite.
 -- ============================================================
 create or replace function public.tmb_handle_new_user()
 returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
-  v_birth date;
-  v_age int;
   v_cat_id int;
   v_role text := 'player';
 begin
   begin
-    v_birth := (new.raw_user_meta_data ->> 'birth_date')::date;
+    v_cat_id := (new.raw_user_meta_data ->> 'assigned_category_id')::int;
   exception when others then
-    v_birth := null;
+    v_cat_id := null;
   end;
-
-  if v_birth is not null then
-    v_age := extract(year from age(current_date, v_birth));
-    v_cat_id := public.tmb_category_for_age(v_age);
-  end if;
 
   -- Bootstrap : le tout premier compte créé sur l'instance devient admin
   -- automatiquement (aucun autre moyen de créer le 1er admin sans clé
@@ -212,13 +275,13 @@ begin
     v_role := 'admin';
   end if;
 
-  insert into public.tmb_profiles (id, email, first_name, last_name, birth_date, role, assigned_category_id)
+  insert into public.tmb_profiles (id, email, username, first_name, last_name, role, assigned_category_id)
   values (
     new.id,
     new.email,
+    new.raw_user_meta_data ->> 'username',
     new.raw_user_meta_data ->> 'first_name',
     new.raw_user_meta_data ->> 'last_name',
-    v_birth,
     v_role,
     v_cat_id
   )
@@ -234,8 +297,10 @@ create trigger tmb_on_auth_user_created
   for each row execute function public.tmb_handle_new_user();
 
 -- ============================================================
--- GARDE-FOU : seul un admin peut changer role / assigned_category_id
--- (empêche un joueur de se promouvoir lui-même via une requête directe).
+-- GARDE-FOU : seul un admin peut changer role (empêche un joueur de se
+-- promouvoir lui-même via une requête directe). assigned_category_id
+-- est volontairement modifiable par soi-même depuis l'écran Paramètres
+-- (coach/joueur peuvent changer leur propre catégorie).
 -- ============================================================
 create or replace function public.tmb_guard_profile_update()
 returns trigger
@@ -243,7 +308,6 @@ language plpgsql security definer set search_path = public as $$
 begin
   if not public.tmb_is_admin() then
     new.role := old.role;
-    new.assigned_category_id := old.assigned_category_id;
   end if;
   new.updated_at := now();
   return new;
@@ -265,10 +329,12 @@ alter table public.tmb_training_days enable row level security;
 alter table public.tmb_exercises enable row level security;
 alter table public.tmb_player_validations enable row level security;
 
--- ---------- tmb_categories : lecture publique authentifiée, écriture admin ----------
+-- ---------- tmb_categories : lecture publique (y compris anon — le
+--   formulaire d'inscription affiche le choix de catégorie avant
+--   connexion), écriture admin ----------
 drop policy if exists tmb_categories_select on public.tmb_categories;
 create policy tmb_categories_select on public.tmb_categories
-  for select to authenticated using (true);
+  for select to anon, authenticated using (true);
 
 drop policy if exists tmb_categories_write on public.tmb_categories;
 create policy tmb_categories_write on public.tmb_categories
@@ -285,10 +351,10 @@ create policy tmb_profiles_select on public.tmb_profiles
     or (public.tmb_is_coach() and assigned_category_id = public.tmb_current_category())
   );
 
--- Un utilisateur peut mettre à jour sa propre ligne (prénom, nom, date de
--- naissance...) ; role/assigned_category_id sont verrouillés par le
--- trigger tmb_guard_profile_update pour les non-admins. L'admin peut
--- modifier n'importe quel profil.
+-- Un utilisateur peut mettre à jour sa propre ligne (prénom, nom,
+-- username, catégorie...) ; seul "role" est verrouillé par le trigger
+-- tmb_guard_profile_update pour les non-admins. L'admin peut modifier
+-- n'importe quel profil.
 drop policy if exists tmb_profiles_update on public.tmb_profiles;
 create policy tmb_profiles_update on public.tmb_profiles
   for update to authenticated

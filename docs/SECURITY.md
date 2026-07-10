@@ -26,29 +26,43 @@ part dans ce dépôt** et ne doit jamais y être ajoutée.
 
 | Table | Lecture | Écriture |
 |---|---|---|
-| `tmb_categories` | Tout utilisateur connecté (`tmb_categories_select`) | Admin uniquement (`tmb_categories_write`) |
+| `tmb_categories` | Tout le monde, y compris non connecté (`tmb_categories_select`, `to anon, authenticated`) | Admin uniquement (`tmb_categories_write`) |
 | `tmb_profiles` | Soi-même, un admin (tout), un coach (les joueurs de sa catégorie) (`tmb_profiles_select`) | Soi-même ou un admin (`tmb_profiles_update`) ; suppression admin uniquement (`tmb_profiles_delete`) ; **pas d'insertion cliente** (créé uniquement par le trigger au signup) |
 | `tmb_training_plans` | Tout utilisateur connecté (`tmb_plans_select`) | Admin (toutes catégories) ou coach (sa seule catégorie) (`tmb_plans_write`) |
 | `tmb_training_days` | Tout utilisateur connecté (`tmb_days_select`) | Admin ou coach de la catégorie du plan parent (`tmb_days_write`) |
 | `tmb_exercises` | Tout utilisateur connecté (`tmb_exercises_select`) | Admin ou coach de la catégorie du jour parent (`tmb_exercises_write`) |
 | `tmb_player_validations` | Soi-même, un admin, un coach de la catégorie concernée (`tmb_validations_select`) | Soi-même (ses propres validations) ou un admin (`tmb_validations_write`) |
 
-Toutes les policies utilisent `to authenticated` : un utilisateur non
-connecté (`anon`) n'a accès à rien, y compris en lecture.
+Toutes les autres policies utilisent `to authenticated` : un utilisateur
+non connecté (`anon`) n'a accès à rien d'autre, y compris en lecture.
+Seule exception : `tmb_categories` est aussi lisible par `anon`, car
+l'écran d'inscription (`assets/js/30-view-auth.js`) affiche le choix de
+catégorie **avant** connexion. Deux fonctions `SECURITY DEFINER`
+supplémentaires sont exposées à `anon` pour le même besoin (connexion
+par identifiant plutôt que par email, voir §7) :
+`tmb_email_for_username(text)` (retourne l'email correspondant à un
+identifiant, ou `null` — jamais utilisée pour lister les profils) et
+`tmb_username_available(text)` (booléen, pour la vérification de
+disponibilité à l'inscription).
 
 ---
 
 ## 3. Garde-fou anti auto-promotion
 
 Un trigger `tmb_guard_profile_update` (avant chaque `UPDATE` sur
-`tmb_profiles`) **réécrit silencieusement** `role` et
-`assigned_category_id` à leur ancienne valeur si l'auteur de la requête
-n'est pas admin. Concrètement : un joueur qui tente `UPDATE tmb_profiles
-SET role = 'admin' WHERE id = auth.uid()` via l'API REST directement
-(en contournant l'interface) voit sa requête "réussir" (pas d'erreur)
-mais son rôle reste inchangé en base — c'est un choix délibéré (échec
-silencieux côté trigger plutôt que rejet, pour rester simple), testé
-par `security/05-role-selfescalation-blocked.js`.
+`tmb_profiles`) **réécrit silencieusement** `role` à son ancienne valeur
+si l'auteur de la requête n'est pas admin. Concrètement : un joueur qui
+tente `UPDATE tmb_profiles SET role = 'admin' WHERE id = auth.uid()` via
+l'API REST directement (en contournant l'interface) voit sa requête
+"réussir" (pas d'erreur) mais son rôle reste inchangé en base — c'est un
+choix délibéré (échec silencieux côté trigger plutôt que rejet, pour
+rester simple), testé par `security/05-role-selfescalation-blocked.js`.
+
+`assigned_category_id` n'est **pas** verrouillé par ce trigger : un
+coach/joueur peut changer sa propre catégorie depuis l'écran Paramètres
+(`assets/js/80-view-settings.js`) — c'est volontaire, la catégorie est
+un critère de visibilité de contenu, pas une frontière de sécurité au
+même titre que le rôle.
 
 Le tout premier compte créé sur une instance vierge devient admin
 automatiquement (`tmb_handle_new_user`, voir `supabase/schema.sql`) —
@@ -89,6 +103,17 @@ quelconque devienne admin au prochain signup.
 - **U13 et U15 partagent le même contenu par défaut** dans
   `assets/default_program.json`, faute de distinction dans les données
   sources originales.
+- **Pas de réinitialisation du mot de passe d'un autre utilisateur
+  depuis l'espace Admin.** L'admin peut éditer identifiant/rôle/
+  catégorie d'un compte existant, mais pas son mot de passe : ça
+  nécessiterait de manipuler `auth.users` directement (clé
+  `service_role`, jamais exposée côté client) — écrire une fonction
+  `SECURITY DEFINER` qui modifierait `auth.users.encrypted_password`
+  via pgcrypto a été jugé trop risqué (incompatibilité potentielle avec
+  le format interne de GoTrue selon les versions de Supabase) pour un
+  gain limité. La personne concernée doit changer son propre mot de
+  passe via l'écran Paramètres (`assets/js/80-view-settings.js`), ou
+  l'admin passe par le tableau de bord Supabase directement.
 
 ---
 
@@ -103,7 +128,32 @@ seule vraie barrière de sécurité de cette app.
 
 ---
 
-## 6. Tests de sécurité automatisés (`security/`)
+## 6. Connexion par identifiant plutôt que par email
+
+Supabase Auth reste géré par email en interne (sessions, RLS
+`auth.uid()`) — l'app n'a pas remplacé Supabase Auth, elle a juste
+ajouté une correspondance identifiant → email en amont :
+
+1. L'utilisateur choisit un **identifiant de connexion** (`username`,
+   colonne `tmb_profiles.username`, unique insensible à la casse) à
+   l'inscription, au lieu d'un email obligatoire.
+2. À la connexion, le client appelle `tmb_email_for_username(username)`
+   (fonction `SECURITY DEFINER`, accessible à `anon`) pour récupérer
+   l'email associé, puis appelle normalement
+   `signInWithPassword({ email, password })`.
+3. Si l'identifiant n'existe pas, la fonction retourne `null` et le
+   client affiche le même message générique ("Identifiants invalides")
+   que pour un mot de passe erroné — pas d'oracle qui distinguerait
+   "identifiant inconnu" de "mauvais mot de passe".
+4. L'email reste **optionnel** à l'inscription. S'il n'est pas fourni,
+   un email technique invisible (`<identifiant>@tmb.local`) est généré
+   côté client uniquement pour satisfaire l'exigence interne de
+   Supabase Auth — il n'est jamais utilisé pour se connecter et n'a pas
+   besoin d'être une adresse valide/joignable.
+
+---
+
+## 7. Tests de sécurité automatisés (`security/`)
 
 Scripts Node autonomes (zéro dépendance, `fetch` natif) qui vérifient
 en conditions réelles que les policies RLS ci-dessus tiennent, en

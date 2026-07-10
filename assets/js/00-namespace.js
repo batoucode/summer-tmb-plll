@@ -25,6 +25,6 @@ window.TMB = {
   data: {},                     // CRUD programme + validations + seed
   nav: {},                       // navigation entre vues, topbar
   components: { programEditor: {} }, // composant partagé admin + coach
-  views: { auth: {}, admin: {}, coach: {}, player: {} },
+  views: { auth: {}, admin: {}, coach: {}, player: {}, settings: {} },
   bootstrap: {}                    // démarrage de session, point d'entrée
 };

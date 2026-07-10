@@ -71,6 +71,14 @@
       });
     }
 
+    const settingsBtn = $("#settingsBtn");
+    if (settingsBtn) {
+      settingsBtn.addEventListener("click", () => {
+        showView("settings");
+        safeRender("settings", () => window.TMB.views.settings.render(), "#view-settings");
+      });
+    }
+
     const themeToggle = $("#themeToggle");
     if (themeToggle) {
       themeToggle.addEventListener("click", () => window.TMB.theme.toggleTheme());

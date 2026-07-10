@@ -40,7 +40,7 @@
   }
 
   function fullName(p) {
-    return [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email || "—";
+    return [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || p.email || "—";
   }
 
   const ROLE_LABELS = { admin: "Admin", coach: "Coach", player: "Joueur" };

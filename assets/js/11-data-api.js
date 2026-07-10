@@ -37,6 +37,17 @@
     if (error) throw error;
   }
 
+  async function updateProfileFields(userId, fields) {
+    const { error } = await sb.from("tmb_profiles").update(fields).eq("id", userId);
+    if (error) throw error;
+  }
+
+  async function checkUsernameAvailable(username) {
+    const { data, error } = await sb.rpc("tmb_username_available", { p_username: username });
+    if (error) throw error;
+    return !!data;
+  }
+
   /* Charge le plan d'une (catégorie, semaine) avec tous ses jours et,
      pour chaque jour, ses exercices (triés par position). Un jour
      absent en base n'apparaît simplement pas dans `days`. */
@@ -142,6 +153,7 @@
 
   Object.assign(window.TMB.data, {
     loadCategories, loadUserProfile, loadAllUsers, updateUserRole, deleteUserProfile,
+    updateProfileFields, checkUsernameAvailable,
     loadProgram, ensurePlan, updatePlan, ensureDay, updateDay,
     updateExercise, addExercise, deleteExercise,
     loadValidations, toggleValidation, bulkValidateDay
