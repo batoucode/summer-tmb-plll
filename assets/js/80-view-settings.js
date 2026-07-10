@@ -25,7 +25,7 @@
           <div class="section-title">Profil</div>
           <div class="field">
             <label>Identifiant de connexion</label>
-            <input type="text" id="stUsername" pattern="[a-zA-Z0-9_.-]{3,24}" value="${escapeHtml(profile.username || "")}">
+            <input type="text" id="stUsername" pattern="[a-zA-Z0-9_.\-]{3,24}" value="${escapeHtml(profile.username || "")}">
           </div>
           <div class="field">
             <label>Catégorie</label>

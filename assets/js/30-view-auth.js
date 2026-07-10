@@ -52,7 +52,7 @@
             ` : ""}
             <div class="field">
               <label>Identifiant de connexion</label>
-              <input type="text" id="fUsername" pattern="[a-zA-Z0-9_.-]{3,24}" required>
+              <input type="text" id="fUsername" pattern="[a-zA-Z0-9_.\-]{3,24}" required>
             </div>
             ${authMode === "signup" ? `
               <div class="field">

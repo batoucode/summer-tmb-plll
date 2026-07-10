@@ -122,7 +122,7 @@
           <div class="field"><label>Nom</label><input type="text" id="npLast"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label>Identifiant de connexion</label><input type="text" id="npUsername" pattern="[a-zA-Z0-9_.-]{3,24}"></div>
+          <div class="field"><label>Identifiant de connexion</label><input type="text" id="npUsername" pattern="[a-zA-Z0-9_.\-]{3,24}"></div>
           <div class="field">
             <label>Catégorie</label>
             <select id="npCategory">${catOptions()}</select>
