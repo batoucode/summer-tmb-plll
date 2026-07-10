@@ -166,6 +166,30 @@ alter table public.tmb_exercises add column if not exists day_id uuid references
 create index if not exists tmb_exercises_day_idx on public.tmb_exercises (day_id);
 
 -- ------------------------------------------------------------
+-- 5bis. EXERCISE LIBRARY — bibliothèque partagée d'exercices (nom,
+--    vidéo, description, schéma, séries par défaut), commune à tous
+--    les coachs/catégories (pas de cloisonnement). Un exercice de jour
+--    (tmb_exercises) peut être lié à une entrée d'ici (library_id) :
+--    l'éditer met à jour la page dédiée vue par le joueur, pour toutes
+--    les catégories qui l'utilisent. Non lié = exercice "personnalisé"
+--    ponctuel (comportement historique, rétro-compatible).
+-- ------------------------------------------------------------
+create table if not exists public.tmb_exercise_library (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  video_url text,
+  description text,
+  schema_url text,
+  default_sets int,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists tmb_exercise_library_name_idx on public.tmb_exercise_library (lower(name));
+
+alter table public.tmb_exercises add column if not exists library_id uuid references public.tmb_exercise_library(id) on delete set null;
+create index if not exists tmb_exercises_library_idx on public.tmb_exercises (library_id);
+
+-- ------------------------------------------------------------
 -- 6. PLAYER VALIDATIONS — 1 ligne par (joueur, exercice)
 --    Le statut "jour validé" est dérivé côté app : un jour est complet
 --    quand tous ses exercices sont validated = true (pas de table dédiée,
@@ -327,6 +351,7 @@ alter table public.tmb_profiles enable row level security;
 alter table public.tmb_training_plans enable row level security;
 alter table public.tmb_training_days enable row level security;
 alter table public.tmb_exercises enable row level security;
+alter table public.tmb_exercise_library enable row level security;
 alter table public.tmb_player_validations enable row level security;
 
 -- ---------- tmb_categories : lecture publique (y compris anon — le
@@ -433,6 +458,20 @@ create policy tmb_exercises_write on public.tmb_exercises
       where d.id = day_id and public.tmb_is_coach() and p.category_id = public.tmb_current_category()
     )
   );
+
+-- ---------- tmb_exercise_library : lecture ouverte à tout authenticated,
+--   écriture ouverte à tout coach (pas seulement sur sa propre catégorie,
+--   la bibliothèque est volontairement partagée entre catégories) et à
+--   l'admin ----------
+drop policy if exists tmb_exercise_library_select on public.tmb_exercise_library;
+create policy tmb_exercise_library_select on public.tmb_exercise_library
+  for select to authenticated using (true);
+
+drop policy if exists tmb_exercise_library_write on public.tmb_exercise_library;
+create policy tmb_exercise_library_write on public.tmb_exercise_library
+  for all to authenticated
+  using (public.tmb_is_admin() or public.tmb_is_coach())
+  with check (public.tmb_is_admin() or public.tmb_is_coach());
 
 -- ---------- tmb_player_validations ----------
 drop policy if exists tmb_validations_select on public.tmb_player_validations;

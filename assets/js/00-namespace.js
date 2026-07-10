@@ -25,7 +25,7 @@ window.TMB = {
   auth: {},                    // inscription / connexion / déconnexion
   data: {},                     // CRUD programme + validations + seed
   nav: {},                       // navigation entre sections, topbar
-  components: { programEditor: {} }, // composant partagé Programme
+  components: { programEditor: {}, timer: {} }, // composants partagés (éditeur de programme, chronomètre)
   views: { auth: {}, training: {}, program: {}, admin: {}, settings: {} },
   bootstrap: {}                    // démarrage de session, point d'entrée
 };

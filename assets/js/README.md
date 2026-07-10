@@ -23,11 +23,12 @@ d'isolation des pannes).
 | `20-nav.js` | Affichage des 5 conteneurs de vue + topbar (doit rester minimal) |
 | `25-section-nav.js` | Barre de navigation entre sections (Entraînement/Programme/Admin/Profil), desktop + mobile |
 | `30-view-auth.js` | Écran de connexion / inscription |
-| `40-component-program-editor.js` | Éditeur de programme partagé (section Programme) |
+| `40-component-program-editor.js` | Éditeur de programme partagé (section Programme), y compris la bibliothèque partagée d'exercices |
+| `45-component-timer.js` | Chronomètre / minuteur partagé (page dédiée d'un exercice, section Entraînement) |
 | `50-view-admin.js` | Section Admin (gestion des comptes) |
 | `60-view-program.js` | Section Programme (édition + stats de régularité par catégorie) — admin/coach |
-| `70-view-training.js` | Section Entraînement (semaine, jour, validation) — n'importe quel rôle avec une catégorie assignée |
-| `80-view-settings.js` | Section Profil (identifiant, catégorie, mot de passe) — tous rôles |
+| `70-view-training.js` | Section Entraînement (semaine, jour, page dédiée par exercice avec chrono) — n'importe quel rôle avec une catégorie assignée |
+| `80-view-settings.js` | Section Profil (identifiant, catégorie, mot de passe, déconnexion, thème) — tous rôles |
 | `90-bootstrap.js` | Démarrage, session, dispatch vers la section d'atterrissage par rôle |
 
 **Convention des préfixes** : `0x` = infra, `1x` = auth/données, `2x` =

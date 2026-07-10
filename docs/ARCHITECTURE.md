@@ -51,11 +51,12 @@ assets/
     20-nav.js                        Affichage des conteneurs de vue + topbar (doit rester minimal)
     25-section-nav.js                Navigation entre sections (Entraînement/Programme/Admin/Profil), desktop + mobile
     30-view-auth.js                  Écran de connexion / inscription
-    40-component-program-editor.js   Éditeur de programme partagé (section Programme)
+    40-component-program-editor.js   Éditeur de programme partagé (section Programme), bibliothèque d'exercices
+    45-component-timer.js            Chronomètre / minuteur partagé (page dédiée d'un exercice)
     50-view-admin.js                 Section Admin (gestion des comptes)
     60-view-program.js               Section Programme (édition + stats de régularité) — admin/coach
-    70-view-training.js              Section Entraînement (semaine, jour, validation) — tout rôle avec catégorie
-    80-view-settings.js              Section Profil (identifiant, catégorie, mot de passe) — tous rôles
+    70-view-training.js              Section Entraînement (semaine, jour, page dédiée par exercice) — tout rôle avec catégorie
+    80-view-settings.js              Section Profil (identifiant, catégorie, mot de passe, déconnexion, thème) — tous rôles
     90-bootstrap.js                  Démarrage, session, dispatch vers la section d'atterrissage par rôle
     README.md                        Résumé condensé de cette page, au plus près du code
   style.css                          Design system "Sportif & Aéré" — une seule feuille,
@@ -106,7 +107,7 @@ window.TMB = {
   auth: {},              // signUp, signIn, signOut, adminCreateAccount, updatePassword
   data: {},               // tout le CRUD + seedDatabase (dont updateProfileFields, checkUsernameAvailable)
   nav: {},                 // showView, renderTopbar, renderSectionNav
-  components: { programEditor: {} },  // mount() partagé, section Programme
+  components: { programEditor: {}, timer: {} },  // mount() partagés (éditeur de programme, chronomètre)
   views: { auth: {}, training: {}, program: {}, admin: {}, settings: {} },
   bootstrap: {}                          // handleSessionChange, init
 };
@@ -162,9 +163,16 @@ directement ce que l'app faisait déjà avant ce découpage.
    protégé), sans tenter de ré-afficher quoi que ce soit (contexte trop
    incertain).
 
-La **topbar** et le **bouton de déconnexion** vivent dans `20-nav.js` /
-`90-bootstrap.js`, jamais à l'intérieur d'un `safeRender` de vue : ils
-restent utilisables même si l'écran affiché en dessous est cassé.
+La **topbar** (nom + badge de rôle, `20-nav.js`) reste rendue en dehors
+de tout `safeRender` de vue : elle s'affiche même si l'écran en dessous
+est cassé. Ce n'est en revanche plus vrai pour la **déconnexion** et
+l'**interrupteur de thème**, tous deux déplacés dans la section Profil
+(`80-view-settings.js`, un choix produit délibéré — la topbar reste
+épurée). Ils héritent donc du filet `safeRender` de CETTE vue : si le
+module Profil plante, ils deviennent inaccessibles depuis l'UI (il
+reste possible de vider le storage du navigateur pour se déconnecter).
+Le principe général tient toujours pour le reste : une panne dans
+Entraînement/Programme/Admin ne bloque jamais l'accès à Profil.
 
 ```mermaid
 flowchart LR
@@ -254,6 +262,17 @@ Une erreur à l'intérieur du composant remonte à l'appelant : elle
 s'affichera donc comme une erreur de la section "program", jamais comme
 une erreur "programEditor" à part — le composant n'a pas son propre
 conteneur de vue, c'est normal.
+
+**Bibliothèque partagée d'exercices** (`tmb_exercise_library`, voir
+`supabase/schema.sql`) : contrairement au reste du programme (par
+catégorie), cette table est volontairement **globale** — tous les
+coachs voient et peuvent éditer les mêmes entrées (nom, vidéo,
+description, schéma, séries par défaut), pas de cloisonnement par
+catégorie. Un exercice de jour (`tmb_exercises`) peut être lié à une
+entrée via `library_id` ; éditer l'entrée met à jour la page dédiée vue
+par le joueur pour **toutes** les catégories qui l'utilisent — le
+composant affiche un avertissement à cet effet. Un exercice non lié
+reste "personnalisé" (comportement historique, toujours supporté).
 
 ---
 

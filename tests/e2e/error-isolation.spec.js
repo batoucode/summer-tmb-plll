@@ -4,10 +4,13 @@ const { buildMockSupabaseInitScript, installMockRoutes } = require("./helpers/mo
 
 /* Vérifie le mécanisme central de docs/ARCHITECTURE.md §5 : un module
    de vue qui plante affiche une carte d'erreur DANS SON SEUL
-   conteneur, sans casser la topbar ni le bouton de déconnexion. On
-   sabote le fichier réseau du module Entraînement (70-view-training.js)
-   pour simuler "un bug livré dans ce module précis", sans toucher aux
-   autres. */
+   conteneur, sans casser la topbar ni empêcher de naviguer vers une
+   autre section pour s'y déconnecter (Déconnexion vit dans la section
+   Profil depuis le 10/07/2026 — voir §5, ce n'est plus garanti si LE
+   MODULE PROFIL LUI-MÊME plante, seulement si la panne est ailleurs).
+   On sabote le fichier réseau du module Entraînement
+   (70-view-training.js) pour simuler "un bug livré dans ce module
+   précis", sans toucher aux autres. */
 
 const db = {
   categories: [{ id: 1, name: "U13", min_age: 11, max_age: 13 }],
@@ -32,8 +35,11 @@ test("un module de vue cassé affiche une carte d'erreur locale sans casser le r
   await expect(page.locator(".error-card")).toBeVisible();
   await expect(page.locator(".error-card")).toContainText("training");
   await expect(page.locator("#topbar")).toBeVisible();
-  await expect(page.locator("#logoutBtn")).toBeVisible();
 
+  // La panne est dans Entraînement, pas Profil : naviguer vers Profil
+  // doit fonctionner normalement et permettre de se déconnecter.
+  await page.click('#sectionNav [data-id="settings"]');
+  await expect(page.locator("#logoutBtn")).toBeVisible();
   await page.click("#logoutBtn");
   const loggedOut = await page.evaluate(() => window.__LOGGED_OUT__ === true);
   expect(loggedOut).toBe(true);

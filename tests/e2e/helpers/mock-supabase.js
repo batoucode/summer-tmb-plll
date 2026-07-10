@@ -20,6 +20,7 @@ window.__SESSION_USER_ID__ = ${sessionJson};
 
 function __tmbTableFor(name) {
   const db = window.__DB__;
+  db[name] = db[name] || []; // robuste aux fixtures qui ne listent pas toutes les tables (ex. exercise_library)
   function builder(rows) {
     const b = {
       _rows: rows,
@@ -82,7 +83,8 @@ window.supabase = {
         const map = {
           tmb_categories: "categories", tmb_profiles: "profiles",
           tmb_training_plans: "plans", tmb_training_days: "days",
-          tmb_exercises: "exercises", tmb_player_validations: "validations"
+          tmb_exercises: "exercises", tmb_player_validations: "validations",
+          tmb_exercise_library: "exercise_library"
         };
         return __tmbTableFor(map[name] || name);
       }

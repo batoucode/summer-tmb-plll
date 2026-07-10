@@ -4,7 +4,10 @@
    l'UI ne se dessine) pour limiter le flash de mauvais thème.
    Réutilise les mêmes variables CSS que le reste de l'app
    (:root[data-theme="dark"] dans assets/style.css) — aucun cas
-   particulier ailleurs dans le code.
+   particulier ailleurs dans le code. L'interrupteur (#themeToggle,
+   une case à cocher) vit dans la section Profil (80-view-settings.js),
+   donc absent du DOM tant que cette vue n'a pas été ouverte une fois —
+   `applyTheme` reste défensif là-dessus.
    ============================================================ */
 (function () {
   "use strict";
@@ -13,8 +16,8 @@
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(THEME_KEY, theme);
-    const btn = document.getElementById("themeToggle");
-    if (btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
+    const toggle = document.getElementById("themeToggle");
+    if (toggle) toggle.checked = theme === "dark";
   }
 
   function currentTheme() {

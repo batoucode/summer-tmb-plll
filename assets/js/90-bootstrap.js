@@ -4,9 +4,11 @@
    dispatch vers la section d'atterrissage par défaut du rôle (admin →
    Admin, coach/joueur → Entraînement). C'est ici que chaque rendu de
    vue passe par TMB.errors.safeRender (02-error-boundary.js) : une
-   panne dans une vue affiche une carte d'erreur locale, ne touche pas
-   à la topbar ni au bouton de déconnexion (câblés ci-dessous,
-   indépendamment de la vue affichée).
+   panne dans une vue affiche une carte d'erreur locale, sans toucher à
+   la topbar (nom + badge de rôle, jamais rendue via safeRender). La
+   déconnexion et le thème vivent désormais dans la section Profil
+   (80-view-settings.js) — voir la note dans docs/ARCHITECTURE.md §5 sur
+   ce que ça change pour l'isolation de pannes.
    ============================================================ */
 (function () {
   "use strict";
@@ -58,18 +60,6 @@
       window.TMB.state.session = newSession;
       if (changed) handleSessionChange();
     });
-
-    const logoutBtn = $("#logoutBtn");
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", async () => {
-        await window.TMB.auth.signOut();
-      });
-    }
-
-    const themeToggle = $("#themeToggle");
-    if (themeToggle) {
-      themeToggle.addEventListener("click", () => window.TMB.theme.toggleTheme());
-    }
   }
 
   window.TMB.bootstrap.handleSessionChange = handleSessionChange;

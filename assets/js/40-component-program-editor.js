@@ -24,15 +24,49 @@
   const { $, $$, el, escapeHtml, toast, DAY_LABELS } = window.TMB.core;
   const data = window.TMB.data;
 
-  function exerciseCardTemplate(ex, idx) {
+  /* Bibliothèque partagée d'exercices (tmb_exercise_library, voir
+     11-data-api.js) : `library` liste toutes les entrées disponibles
+     (chargée une fois par mountProgramEditor, voir plus bas). Choisir
+     une entrée autoremplit nom + séries par défaut ; "➕ Nouvel
+     exercice…" ouvre un mini-formulaire inline pour en créer une. */
+  function exerciseCardTemplate(ex, idx, library) {
+    const libId = ex.library_id || "";
+    const libOptions = (library || [])
+      .map((le) => `<option value="${le.id}" ${le.id === libId ? "selected" : ""}>${escapeHtml(le.name)}</option>`).join("");
     return `
-      <div class="exo-edit-card" data-idx="${idx}" data-id="${ex.id || ""}">
+      <div class="exo-edit-card" data-idx="${idx}" data-id="${ex.id || ""}" data-lib-id="${libId}">
+        <div class="field-row">
+          <div class="field field-grow">
+            <label>Exercice (bibliothèque)</label>
+            <select data-f="libSelect" class="exo-lib-select">
+              <option value="">— Exercice personnalisé (nom libre) —</option>
+              ${libOptions}
+              <option value="__new__">➕ Nouvel exercice…</option>
+            </select>
+          </div>
+        </div>
         <div class="field-row">
           <div class="field field-grow">
             <label>Nom de l'exercice</label>
             <input type="text" data-f="name" value="${escapeHtml(ex.name || "")}" placeholder="ex: Goblet Squat">
           </div>
+          <button type="button" class="btn-secondary btn-edit-lib ${libId ? "" : "hidden"}">✏️ Vidéo / description</button>
         </div>
+
+        <div class="lib-form hidden" data-lib-form>
+          <div class="field-row">
+            <div class="field field-grow"><label>Vidéo (lien)</label><input type="url" data-lf="video_url" placeholder="https://..."></div>
+            <div class="field"><label>Séries par défaut</label><input type="number" min="0" data-lf="default_sets"></div>
+          </div>
+          <div class="field"><label>Description / explication</label><textarea rows="2" data-lf="description"></textarea></div>
+          <div class="field"><label>Schéma (lien image, optionnel)</label><input type="url" data-lf="schema_url" placeholder="https://..."></div>
+          <p class="lib-form-hint">⚠️ Modifier ceci change l'exercice pour toutes les catégories qui l'utilisent.</p>
+          <div class="field-row">
+            <button type="button" class="btn-primary btn-save-lib">Enregistrer l'exercice</button>
+            <button type="button" class="btn-ghost btn-cancel-lib">Annuler</button>
+          </div>
+        </div>
+
         <div class="field-row">
           <div class="field">
             <label>🔄 Séries</label>
@@ -59,12 +93,14 @@
   }
 
   function readExerciseCard(cardEl) {
+    const libId = cardEl.dataset.libId;
     return {
       name: $('[data-f="name"]', cardEl).value.trim(),
       sets: numOrNull($('[data-f="sets"]', cardEl).value),
       duration: numOrNull($('[data-f="duration"]', cardEl).value),
       intensity: numOrNull($('[data-f="intensity"]', cardEl).value),
-      reps: $('[data-f="reps"]', cardEl).value.trim() || null
+      reps: $('[data-f="reps"]', cardEl).value.trim() || null,
+      library_id: libId && libId !== "__new__" ? libId : null
     };
   }
   function numOrNull(v) { return v === "" || v == null ? null : Number(v); }
@@ -95,7 +131,8 @@
       allowedCategories: opts.allowedCategories, // null = toutes
       plan: null,
       days: [], // jours existants en base pour ce plan
-      exoEditMode: false // false = tableau résumé, true = édition des cartes
+      exoEditMode: false, // false = tableau résumé, true = édition des cartes
+      library: [] // bibliothèque partagée d'exercices (tmb_exercise_library), chargée une fois
     };
 
     function dayByIndex(idx) { return state.days.find((d) => d.day_index === idx); }
@@ -309,7 +346,90 @@
         `;
 
         const list = $("#edExoList", exoBody);
+
+        // Ajoute la nouvelle entrée bibliothèque à TOUS les menus déroulants
+        // déjà affichés dans ce jour (pas seulement la carte qui l'a créée),
+        // pour qu'elle soit immédiatement sélectionnable ailleurs aussi.
+        function addLibraryOptionEverywhere(entry) {
+          const optHtml = `<option value="${entry.id}">${escapeHtml(entry.name)}</option>`;
+          $$(".exo-lib-select", list).forEach((sel) => {
+            sel.querySelector('option[value="__new__"]').insertAdjacentHTML("beforebegin", optHtml);
+          });
+        }
+
         function bindExoCard(card) {
+          const select = $('[data-f="libSelect"]', card);
+          const nameInput = $('[data-f="name"]', card);
+          const setsInput = $('[data-f="sets"]', card);
+          const editBtn = $(".btn-edit-lib", card);
+          const libForm = $("[data-lib-form]", card);
+
+          function showLibForm(entry) {
+            libForm.classList.remove("hidden");
+            $('[data-lf="video_url"]', libForm).value = (entry && entry.video_url) || "";
+            $('[data-lf="description"]', libForm).value = (entry && entry.description) || "";
+            $('[data-lf="schema_url"]', libForm).value = (entry && entry.schema_url) || "";
+            $('[data-lf="default_sets"]', libForm).value = (entry && entry.default_sets) ?? "";
+          }
+          function hideLibForm() { libForm.classList.add("hidden"); }
+
+          select.addEventListener("change", () => {
+            const val = select.value;
+            if (val === "__new__") {
+              card.dataset.libId = "";
+              showLibForm(null);
+              return;
+            }
+            hideLibForm();
+            card.dataset.libId = val;
+            if (!val) { editBtn.classList.add("hidden"); return; }
+            const entry = state.library.find((l) => l.id === val);
+            if (entry) {
+              nameInput.value = entry.name;
+              if (!setsInput.value) setsInput.value = entry.default_sets ?? "";
+            }
+            editBtn.classList.remove("hidden");
+          });
+
+          editBtn.addEventListener("click", () => {
+            showLibForm(state.library.find((l) => l.id === card.dataset.libId));
+          });
+
+          $(".btn-cancel-lib", card).addEventListener("click", () => {
+            hideLibForm();
+            if (!card.dataset.libId) select.value = "";
+          });
+
+          $(".btn-save-lib", card).addEventListener("click", async () => {
+            const fields = {
+              name: nameInput.value.trim() || "Nouvel exercice",
+              video_url: $('[data-lf="video_url"]', libForm).value.trim() || null,
+              description: $('[data-lf="description"]', libForm).value.trim() || null,
+              schema_url: $('[data-lf="schema_url"]', libForm).value.trim() || null,
+              default_sets: numOrNull($('[data-lf="default_sets"]', libForm).value)
+            };
+            try {
+              if (card.dataset.libId) {
+                await data.updateLibraryExercise(card.dataset.libId, fields);
+                const entry = state.library.find((l) => l.id === card.dataset.libId);
+                if (entry) Object.assign(entry, fields);
+                select.querySelector(`option[value="${card.dataset.libId}"]`).textContent = fields.name;
+                toast("Exercice mis à jour dans la bibliothèque.");
+              } else {
+                const row = await data.createLibraryExercise(fields);
+                state.library.push(row);
+                state.library.sort((a, b) => a.name.localeCompare(b.name));
+                addLibraryOptionEverywhere(row);
+                card.dataset.libId = row.id;
+                select.value = row.id;
+                editBtn.classList.remove("hidden");
+                toast("Exercice créé dans la bibliothèque.");
+              }
+              nameInput.value = fields.name;
+              hideLibForm();
+            } catch (err) { toast(err.message || String(err), true); }
+          });
+
           $(".btn-del-exo", card).addEventListener("click", async () => {
             const id = card.dataset.id;
             if (!confirm("Supprimer cet exercice ?")) return;
@@ -321,7 +441,7 @@
           });
         }
         day.exercises.forEach((ex, idx) => {
-          const card = el(exerciseCardTemplate(ex, idx));
+          const card = el(exerciseCardTemplate(ex, idx, state.library));
           list.appendChild(card);
           bindExoCard(card);
         });
@@ -330,7 +450,7 @@
         // ne pas perdre les champs déjà remplis (intitulé du jour, exercices
         // en cours d'édition) qui ne sont pas encore publiés.
         $("#edAddExo", exoBody).addEventListener("click", () => {
-          const card = el(exerciseCardTemplate({ id: null, name: "", sets: null, duration: null, intensity: 5, reps: "" }, list.children.length));
+          const card = el(exerciseCardTemplate({ id: null, name: "", sets: null, duration: null, intensity: 5, reps: "" }, list.children.length, state.library));
           list.appendChild(card);
           bindExoCard(card);
         });
@@ -382,6 +502,7 @@
       }
     }
 
+    try { state.library = await data.loadExerciseLibrary(); } catch (err) { state.library = []; }
     await load();
   }
 

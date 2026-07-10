@@ -14,6 +14,17 @@
 
   let trainingWeek = 1;
   let trainingDayIndex = null; // null = vue "semaine" (liste des jours)
+  let trainingExerciseId = null; // id de l'exercice affiché en détail, ou null
+
+  /* Convention DAY_LABELS : Lundi=0 … Dimanche=6 (+7 = créneau bonus,
+     jamais "aujourd'hui"). Date.getDay() natif renvoie 0=Dimanche, à
+     remapper. Sert uniquement à mettre en évidence le jour réel dans
+     la vue "semaine" (badge "Aujourd'hui") — n'affecte pas la
+     navigation, qui reste au clic. */
+  function todayDayIndex() {
+    const jsDay = new Date().getDay();
+    return jsDay === 0 ? 6 : jsDay - 1;
+  }
 
   function dayStatus(day, validations) {
     if (day.is_rest) return { label: "Repos", cls: "rest", done: 0, total: 0 };
@@ -40,6 +51,12 @@
     const categories = window.TMB.state.categories;
     const catName = (categories.find((c) => c.id === profile.assigned_category_id) || {}).name || "";
 
+    if (trainingExerciseId !== null && trainingDayIndex !== null) {
+      const day = days.find((d) => d.day_index === trainingDayIndex);
+      const ex = day && day.exercises.find((e) => e.id === trainingExerciseId);
+      if (day && ex) { await renderExerciseDetail(root, { day, ex, catName }); return; }
+      trainingExerciseId = null;
+    }
     if (trainingDayIndex !== null) {
       renderDayDetail(root, { plan, days, validations, catName });
     } else {
@@ -83,13 +100,15 @@
       list.innerHTML = `<div class="empty-state">Programme pas encore publié pour cette semaine.</div>`;
       return;
     }
+    const todayIdx = todayDayIndex();
     days.forEach((day) => {
       const st = dayStatus(day, validations);
       const label = DAY_LABELS[day.day_index];
+      const isToday = day.day_index === todayIdx;
       const card = el(`
-        <button type="button" class="day-card ${st.cls}" data-d="${day.day_index}" ${day.is_rest ? "disabled" : ""}>
+        <button type="button" class="day-card ${st.cls} ${isToday ? "is-today" : ""}" data-d="${day.day_index}" ${day.is_rest ? "disabled" : ""}>
           <div class="day-card-left">
-            <div class="day-name">${day.day_index === 7 ? "🏆 " : ""}${escapeHtml(label)}</div>
+            <div class="day-name">${day.day_index === 7 ? "🏆 " : ""}${escapeHtml(label)}${isToday ? `<span class="day-today-badge">Aujourd'hui</span>` : ""}</div>
             <div class="day-session">${escapeHtml(day.label || (day.is_rest ? "Repos" : ""))}</div>
           </div>
           <span class="status-pill ${st.cls}">${st.label}</span>
@@ -141,7 +160,7 @@
       const card = el(`
         <div class="player-exo-card ${isDone ? "is-done" : ""}" data-id="${ex.id}">
           <div class="pe-top">
-            <div class="pe-name">${escapeHtml(ex.name)}</div>
+            <button type="button" class="pe-name" aria-label="Voir la fiche de l'exercice">${escapeHtml(ex.name)}</button>
             <button type="button" class="pe-check" aria-label="Valider">${isDone ? "✅" : "⬜"}</button>
           </div>
           <div class="pe-meta">
@@ -149,9 +168,12 @@
             ${ex.duration ? `<span class="pe-chip">⏱️ ${ex.duration}s</span>` : ""}
             ${ex.intensity ? `<span class="pe-chip">💪 ${ex.intensity}/10</span>` : ""}
           </div>
-          ${ex.video_url ? `<a class="pe-video" href="${ex.video_url}" target="_blank" rel="noopener">▶ Voir la vidéo</a>` : ""}
         </div>
       `);
+      $(".pe-name", card).addEventListener("click", () => {
+        trainingExerciseId = ex.id;
+        renderTrainingView();
+      });
       $(".pe-check", card).addEventListener("click", async () => {
         const nowDone = !card.classList.contains("is-done");
         card.classList.toggle("is-done", nowDone);
@@ -197,6 +219,76 @@
     if (!bulkBtn) return;
     const allDone = day.exercises.length > 0 && day.exercises.every((e) => validations[e.id] && validations[e.id].validated);
     bulkBtn.textContent = allDone ? "↺ Tout dé-valider" : "✅ Valider toute la séance";
+  }
+
+  /* Convertit un lien YouTube (watch/shorts/youtu.be) en URL d'embed
+     responsive ; renvoie null pour tout le reste (Vimeo, lien direct,
+     etc.), auquel cas on affiche un simple lien "▶ Voir la vidéo". */
+  function youtubeEmbedUrl(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname === "youtu.be") return `https://www.youtube.com/embed${u.pathname}`;
+      if (!/youtube\.com$/.test(u.hostname.replace(/^www\./, ""))) return null;
+      if (u.pathname.startsWith("/shorts/")) return `https://www.youtube.com/embed/${u.pathname.split("/")[2]}`;
+      const id = u.searchParams.get("v");
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    } catch (e) { return null; }
+  }
+
+  function videoBlockHtml(videoUrl) {
+    if (!videoUrl) return "";
+    const embedUrl = youtubeEmbedUrl(videoUrl);
+    if (embedUrl) {
+      return `<div class="exo-video-embed"><iframe src="${embedUrl}" title="Vidéo de l'exercice" allowfullscreen loading="lazy"></iframe></div>`;
+    }
+    return `<a class="pe-video" href="${videoUrl}" target="_blank" rel="noopener">▶ Voir la vidéo</a>`;
+  }
+
+  /* Page dédiée d'un exercice (clic sur son nom depuis renderDayDetail) :
+     séries/consigne définies par le coach (lecture seule), chronomètre,
+     et — si l'exercice est lié à la bibliothèque partagée
+     (tmb_exercise_library, voir 11-data-api.js) — vidéo/description/
+     schéma renseignés par le coach. Sans lien bibliothèque (exercice
+     "personnalisé" ponctuel), on retombe sur l'ancien champ video_url. */
+  async function renderExerciseDetail(root, { day, ex, catName }) {
+    const label = DAY_LABELS[day.day_index];
+    let libEntry = null;
+    if (ex.library_id) {
+      try { libEntry = await data.loadLibraryExerciseById(ex.library_id); } catch (e) { libEntry = null; }
+    }
+    const videoUrl = (libEntry && libEntry.video_url) || ex.video_url || null;
+    const description = libEntry && libEntry.description;
+    const schemaUrl = libEntry && libEntry.schema_url;
+
+    root.innerHTML = `
+      <div class="page">
+        <button class="btn-ghost" id="backToDay">← Retour à ${escapeHtml(label)}</button>
+        <div class="page-eyebrow">${escapeHtml(label)} · ${escapeHtml(catName)}</div>
+        <div class="page-title">${escapeHtml(ex.name)}</div>
+
+        <div class="pe-meta">
+          ${ex.reps ? `<span class="pe-chip">🔄 ${escapeHtml(ex.reps)}</span>` : (ex.sets ? `<span class="pe-chip">🔄 x${ex.sets}</span>` : "")}
+          ${ex.duration ? `<span class="pe-chip">⏱️ ${ex.duration}s</span>` : ""}
+          ${ex.intensity ? `<span class="pe-chip">💪 ${ex.intensity}/10</span>` : ""}
+        </div>
+
+        <div class="card">
+          <div class="section-title">Chronomètre</div>
+          <div id="exoChrono"></div>
+        </div>
+
+        ${videoUrl || description || schemaUrl ? `
+        <div class="card">
+          <div class="section-title">Comment faire</div>
+          ${videoBlockHtml(videoUrl)}
+          ${description ? `<p class="exo-detail-desc">${escapeHtml(description)}</p>` : ""}
+          ${schemaUrl ? `<img class="exo-schema-img" src="${schemaUrl}" alt="Schéma de l'exercice" loading="lazy">` : ""}
+        </div>` : ""}
+      </div>
+    `;
+
+    $("#backToDay", root).addEventListener("click", () => { trainingExerciseId = null; renderTrainingView(); });
+    window.TMB.components.timer.mount($("#exoChrono", root), { durationSeconds: ex.duration });
   }
 
   window.TMB.views.training.render = renderTrainingView;

@@ -4,12 +4,16 @@
    identifiant de connexion, sa catégorie et son mot de passe. Accessible
    depuis la barre de navigation (25-section-nav.js), qui gère aussi le
    retour vers une autre section — pas de bouton "Retour" dédié ici.
+   Héberge aussi la déconnexion et l'interrupteur de thème (déplacés
+   depuis la topbar) — voir la note dans docs/ARCHITECTURE.md §5 : ces
+   deux contrôles dépendent désormais du bon rendu de CETTE vue.
    ============================================================ */
 (function () {
   "use strict";
   const { $, escapeHtml, toast } = window.TMB.core;
   const data = window.TMB.data;
   const auth = window.TMB.auth;
+  const theme = window.TMB.theme;
 
   function renderSettingsView() {
     const root = $("#view-settings");
@@ -19,6 +23,18 @@
     root.innerHTML = `
       <div class="page">
         <div class="page-title">Profil</div>
+
+        <div class="card">
+          <div class="section-title">Session</div>
+          <label class="theme-switch-row" for="themeToggle">
+            <span>🌙 Thème sombre</span>
+            <span class="theme-switch">
+              <input type="checkbox" id="themeToggle" ${theme.currentTheme() === "dark" ? "checked" : ""}>
+              <span class="theme-switch-track"><span class="theme-switch-knob"></span></span>
+            </span>
+          </label>
+          <button class="btn-secondary btn-block" id="logoutBtn">Déconnexion</button>
+        </div>
 
         <div class="card">
           <div class="section-title">Profil</div>
@@ -51,6 +67,9 @@
         </div>
       </div>
     `;
+
+    $("#themeToggle", root).addEventListener("change", () => theme.toggleTheme());
+    $("#logoutBtn", root).addEventListener("click", async () => { await auth.signOut(); });
 
     $("#stProfileSave", root).addEventListener("click", async () => {
       const errEl = $("#stProfileError", root);

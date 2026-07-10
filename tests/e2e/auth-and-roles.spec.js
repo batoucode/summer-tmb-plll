@@ -59,10 +59,12 @@ test.describe("Dispatch par rôle", () => {
     await expect(page.locator("#sectionNav .section-nav-item")).toHaveCount(2);
   });
 
-  test("le bouton déconnexion appelle bien signOut", async ({ page }) => {
+  test("le bouton déconnexion (section Profil) appelle bien signOut", async ({ page }) => {
     await page.addInitScript(buildMockSupabaseInitScript(baseDb, "player-1"));
     await installMockRoutes(page);
     await page.goto("/index.html");
+    // Déconnexion vit désormais dans la section Profil, pas la topbar.
+    await page.click('#sectionNav [data-id="settings"]');
     await page.click("#logoutBtn");
     const loggedOut = await page.evaluate(() => window.__LOGGED_OUT__ === true);
     expect(loggedOut).toBe(true);

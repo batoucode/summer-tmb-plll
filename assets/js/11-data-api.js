@@ -125,6 +125,29 @@
     if (error) throw error;
   }
 
+  async function loadExerciseLibrary() {
+    const { data, error } = await sb.from("tmb_exercise_library").select("*").order("name");
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function loadLibraryExerciseById(id) {
+    const { data, error } = await sb.from("tmb_exercise_library").select("*").eq("id", id).maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  async function createLibraryExercise(fields) {
+    const { data: row, error } = await sb.from("tmb_exercise_library").insert(fields).select().single();
+    if (error) throw error;
+    return row;
+  }
+
+  async function updateLibraryExercise(id, fields) {
+    const { error } = await sb.from("tmb_exercise_library").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) throw error;
+  }
+
   async function loadValidations(playerId, exerciseIds) {
     if (!exerciseIds.length) return {};
     const { data, error } = await sb.from("tmb_player_validations")
@@ -164,6 +187,7 @@
     updateProfileFields, checkUsernameAvailable,
     loadProgram, ensurePlan, updatePlan, ensureDay, updateDay,
     updateExercise, addExercise, deleteExercise,
+    loadExerciseLibrary, loadLibraryExerciseById, createLibraryExercise, updateLibraryExercise,
     loadValidations, toggleValidation, bulkValidateDay
   });
 })();
