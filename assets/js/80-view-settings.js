@@ -1,10 +1,9 @@
 /* ============================================================
-   TMB SUMMER BOOK — 80. VUE PARAMÈTRES
-   Écran self-service pour coach/joueur : modifier son identifiant de
-   connexion, sa catégorie et son mot de passe. Pas de menu interne
-   propre — accessible depuis le bouton "⚙️ Paramètres" de la topbar
-   (voir 90-bootstrap.js), retour via handleSessionChange qui réaffiche
-   automatiquement la bonne vue selon le rôle.
+   TMB SUMMER BOOK — 80. VUE PROFIL
+   Écran self-service pour tous les rôles (admin compris) : modifier son
+   identifiant de connexion, sa catégorie et son mot de passe. Accessible
+   depuis la barre de navigation (25-section-nav.js), qui gère aussi le
+   retour vers une autre section — pas de bouton "Retour" dédié ici.
    ============================================================ */
 (function () {
   "use strict";
@@ -19,7 +18,7 @@
 
     root.innerHTML = `
       <div class="page">
-        <div class="page-title">Paramètres</div>
+        <div class="page-title">Profil</div>
 
         <div class="card">
           <div class="section-title">Profil</div>
@@ -50,14 +49,8 @@
           <div class="form-error" id="stPasswordError"></div>
           <button class="btn-primary" id="stPasswordSave">Changer le mot de passe</button>
         </div>
-
-        <button class="btn-secondary" id="stBack">← Retour</button>
       </div>
     `;
-
-    $("#stBack", root).addEventListener("click", () => {
-      window.TMB.bootstrap.handleSessionChange();
-    });
 
     $("#stProfileSave", root).addEventListener("click", async () => {
       const errEl = $("#stProfileError", root);

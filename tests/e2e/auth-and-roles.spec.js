@@ -29,28 +29,34 @@ test.describe("Dispatch par rôle", () => {
     plans: [], days: [], exercises: [], validations: []
   };
 
-  test("un compte admin atterrit sur #view-admin", async ({ page }) => {
+  test("un compte admin atterrit sur la section Admin (#view-admin)", async ({ page }) => {
     await page.addInitScript(buildMockSupabaseInitScript(baseDb, "admin-1"));
     await installMockRoutes(page);
     await page.goto("/index.html");
     await expect(page.locator("#view-admin")).toBeVisible();
     await expect(page.locator("#topbarUserRole")).toHaveText("Admin");
+    // 4 sections pour l'admin : Entraînement, Programme, Admin, Profil.
+    await expect(page.locator("#sectionNav .section-nav-item")).toHaveCount(4);
   });
 
-  test("un compte coach atterrit sur #view-coach", async ({ page }) => {
+  test("un compte coach atterrit sur la section Entraînement (#view-training)", async ({ page }) => {
     await page.addInitScript(buildMockSupabaseInitScript(baseDb, "coach-1"));
     await installMockRoutes(page);
     await page.goto("/index.html");
-    await expect(page.locator("#view-coach")).toBeVisible();
+    await expect(page.locator("#view-training")).toBeVisible();
     await expect(page.locator("#topbarUserRole")).toHaveText("Coach");
+    // 3 sections pour le coach : Entraînement, Programme, Profil (pas Admin).
+    await expect(page.locator("#sectionNav .section-nav-item")).toHaveCount(3);
   });
 
-  test("un compte joueur atterrit sur #view-player", async ({ page }) => {
+  test("un compte joueur atterrit sur la section Entraînement (#view-training)", async ({ page }) => {
     await page.addInitScript(buildMockSupabaseInitScript(baseDb, "player-1"));
     await installMockRoutes(page);
     await page.goto("/index.html");
-    await expect(page.locator("#view-player")).toBeVisible();
+    await expect(page.locator("#view-training")).toBeVisible();
     await expect(page.locator("#topbarUserRole")).toHaveText("Joueur");
+    // 2 sections pour le joueur : Entraînement, Profil (pas Programme ni Admin).
+    await expect(page.locator("#sectionNav .section-nav-item")).toHaveCount(2);
   });
 
   test("le bouton déconnexion appelle bien signOut", async ({ page }) => {

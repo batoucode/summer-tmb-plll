@@ -1,16 +1,19 @@
 /* ============================================================
-   TMB SUMMER BOOK — 70. VUE PLAYER
+   TMB SUMMER BOOK — 70. VUE ENTRAÎNEMENT
    Semaine → liste des jours (comme un planning papier) → détail d'un
    jour avec ses exercices, validables un par un ou d'un coup ("Valider
-   toute la séance").
+   toute la séance"). Générique par rôle : montre l'entraînement à faire
+   pour QUICONQUE a une catégorie assignée à son profil (joueur bien
+   sûr, mais aussi un coach ou un admin qui s'entraîne lui-même avec son
+   équipe) — voir profile.assigned_category_id, pas profile.role.
    ============================================================ */
 (function () {
   "use strict";
   const { $, $$, el, escapeHtml, toast, DAY_LABELS } = window.TMB.core;
   const data = window.TMB.data;
 
-  let playerWeek = 1;
-  let playerDayIndex = null; // null = vue "semaine" (liste des jours)
+  let trainingWeek = 1;
+  let trainingDayIndex = null; // null = vue "semaine" (liste des jours)
 
   function dayStatus(day, validations) {
     if (day.is_rest) return { label: "Repos", cls: "rest", done: 0, total: 0 };
@@ -22,8 +25,8 @@
     return { label: "À faire", cls: "todo", done, total };
   }
 
-  async function renderPlayerView() {
-    const root = $("#view-player");
+  async function renderTrainingView() {
+    const root = $("#view-training");
     const profile = window.TMB.state.profile;
     if (!profile.assigned_category_id) {
       root.innerHTML = `<div class="page"><div class="empty-state">Aucune catégorie ne t'est assignée pour le moment. Contacte un administrateur.</div></div>`;
@@ -31,20 +34,20 @@
     }
     root.innerHTML = `<div class="page"><div class="empty-state">Chargement…</div></div>`;
 
-    const { plan, days } = await data.loadProgram(profile.assigned_category_id, playerWeek);
+    const { plan, days } = await data.loadProgram(profile.assigned_category_id, trainingWeek);
     const allExerciseIds = days.flatMap((d) => d.exercises.map((e) => e.id));
     const validations = await data.loadValidations(profile.id, allExerciseIds);
     const categories = window.TMB.state.categories;
     const catName = (categories.find((c) => c.id === profile.assigned_category_id) || {}).name || "";
 
-    if (playerDayIndex !== null) {
-      renderPlayerDayDetail(root, { plan, days, validations, catName });
+    if (trainingDayIndex !== null) {
+      renderDayDetail(root, { plan, days, validations, catName });
     } else {
-      renderPlayerWeekOverview(root, { plan, days, validations, catName });
+      renderWeekOverview(root, { plan, days, validations, catName });
     }
   }
 
-  function renderPlayerWeekOverview(root, { plan, days, validations, catName }) {
+  function renderWeekOverview(root, { plan, days, validations, catName }) {
     const totalEx = days.reduce((s, d) => s + d.exercises.length, 0);
     const doneEx = days.reduce((s, d) => s + d.exercises.filter((e) => validations[e.id] && validations[e.id].validated).length, 0);
     const pct = totalEx ? Math.round((doneEx / totalEx) * 100) : 0;
@@ -52,10 +55,10 @@
     root.innerHTML = `
       <div class="page">
         <div class="page-eyebrow">Programme · ${escapeHtml(catName)}</div>
-        <div class="page-title">${plan ? escapeHtml(plan.objective || `Semaine ${playerWeek}`) : "Semaine " + playerWeek}</div>
+        <div class="page-title">${plan ? escapeHtml(plan.objective || `Semaine ${trainingWeek}`) : "Semaine " + trainingWeek}</div>
 
-        <div class="week-tabs round" id="playerWeekTabs">
-          ${[1, 2, 3, 4, 5].map((w) => `<button class="week-tab round ${w === playerWeek ? "active" : ""}" data-w="${w}">S${w}</button>`).join("")}
+        <div class="week-tabs round" id="trainingWeekTabs">
+          ${[1, 2, 3, 4, 5].map((w) => `<button class="week-tab round ${w === trainingWeek ? "active" : ""}" data-w="${w}">S${w}</button>`).join("")}
         </div>
 
         <div class="progress-card">
@@ -69,13 +72,13 @@
         ${plan && plan.staff_quote ? `<div class="info-card"><p><strong>Le mot du staff :</strong> ${escapeHtml(plan.staff_quote)}</p></div>` : ""}
 
         <div class="section-title">Jours de la semaine</div>
-        <div id="playerDayList" class="day-list"></div>
+        <div id="trainingDayList" class="day-list"></div>
       </div>
     `;
 
-    $$(".week-tab", root).forEach((btn) => btn.addEventListener("click", () => { playerWeek = Number(btn.dataset.w); renderPlayerView(); }));
+    $$(".week-tab", root).forEach((btn) => btn.addEventListener("click", () => { trainingWeek = Number(btn.dataset.w); renderTrainingView(); }));
 
-    const list = $("#playerDayList", root);
+    const list = $("#trainingDayList", root);
     if (!days.length) {
       list.innerHTML = `<div class="empty-state">Programme pas encore publié pour cette semaine.</div>`;
       return;
@@ -93,15 +96,15 @@
         </button>
       `);
       if (!day.is_rest) {
-        card.addEventListener("click", () => { playerDayIndex = day.day_index; renderPlayerView(); });
+        card.addEventListener("click", () => { trainingDayIndex = day.day_index; renderTrainingView(); });
       }
       list.appendChild(card);
     });
   }
 
-  function renderPlayerDayDetail(root, { days, validations, catName }) {
-    const day = days.find((d) => d.day_index === playerDayIndex);
-    if (!day) { playerDayIndex = null; renderPlayerView(); return; }
+  function renderDayDetail(root, { days, validations, catName }) {
+    const day = days.find((d) => d.day_index === trainingDayIndex);
+    if (!day) { trainingDayIndex = null; renderTrainingView(); return; }
     const profile = window.TMB.state.profile;
     const label = DAY_LABELS[day.day_index];
     const allDone = day.exercises.length > 0 && day.exercises.every((e) => validations[e.id] && validations[e.id].validated);
@@ -123,13 +126,13 @@
           ${allDone ? "↺ Tout dé-valider" : "✅ Valider toute la séance"}
         </button>` : ""}
 
-        <div id="playerExoList" class="player-exo-grid"></div>
+        <div id="trainingExoList" class="player-exo-grid"></div>
       </div>
     `;
 
-    $("#backToWeek", root).addEventListener("click", () => { playerDayIndex = null; renderPlayerView(); });
+    $("#backToWeek", root).addEventListener("click", () => { trainingDayIndex = null; renderTrainingView(); });
 
-    const list = $("#playerExoList", root);
+    const list = $("#trainingExoList", root);
     if (!day.exercises.length) {
       list.innerHTML = `<div class="empty-state">Aucun exercice pour cette séance.</div>`;
     }
@@ -196,5 +199,5 @@
     bulkBtn.textContent = allDone ? "↺ Tout dé-valider" : "✅ Valider toute la séance";
   }
 
-  window.TMB.views.player.render = renderPlayerView;
+  window.TMB.views.training.render = renderTrainingView;
 })();

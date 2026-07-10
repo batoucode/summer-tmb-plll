@@ -12,7 +12,9 @@ test.describe("Éditeur de programme — Admin", () => {
     await installMockRoutes(page);
     await page.goto("/index.html");
 
-    await page.click('.tab[data-tab="program"]');
+    // L'admin atterrit sur la section Admin par défaut ; navigue vers Programme
+    // (onglet "✏️ Éditer" actif par défaut, pas besoin de clic supplémentaire).
+    await page.click('#sectionNav [data-id="program"]');
     await expect(page.locator("#edCreatePlan")).toBeVisible();
     await page.click("#edCreatePlan");
 
@@ -62,8 +64,8 @@ test.describe("Éditeur de programme — Admin", () => {
   });
 });
 
-test.describe("Éditeur de programme — Coach (catégorie verrouillée)", () => {
-  test("le coach ne voit pas de sélecteur de catégorie et peut publier", async ({ page }) => {
+test.describe("Éditeur de programme — Coach", () => {
+  test("le coach peut éditer sa propre catégorie (pré-sélectionnée) et publier", async ({ page }) => {
     await page.addInitScript(buildMockSupabaseInitScript({
       categories: [{ id: 1, name: "U13", min_age: 11, max_age: 13 }],
       profiles: [{ id: "coach-1", email: "coach@test.dev", first_name: "Cathy", last_name: "Coach", role: "coach", assigned_category_id: 1 }],
@@ -72,8 +74,13 @@ test.describe("Éditeur de programme — Coach (catégorie verrouillée)", () =>
     await installMockRoutes(page);
     await page.goto("/index.html");
 
-    await expect(page.locator(".locked-cat")).toBeVisible();
-    await expect(page.locator("#edCategory")).toHaveCount(0);
+    // Le coach atterrit sur Entraînement par défaut ; navigue vers Programme.
+    await page.click('#sectionNav [data-id="program"]');
+    // Le sélecteur de catégorie est toujours affiché (lockCategory:false
+    // depuis la restructuration en sections) ; pas de pastille "lecture
+    // seule" puisque c'est sa propre catégorie qui est présélectionnée.
+    await expect(page.locator("#edCategory")).toHaveCount(1);
+    await expect(page.getByText("Lecture seule")).toHaveCount(0);
 
     await page.click("#edCreatePlan");
     await page.click('#edDayTabs .week-tab[data-d="0"]');
@@ -81,5 +88,24 @@ test.describe("Éditeur de programme — Coach (catégorie verrouillée)", () =>
     await page.fill("#dyLabel", "Cardio");
     await page.click("#edPublish");
     await expect(page.locator(".toast")).toContainText("publié");
+  });
+
+  test("le coach ne peut pas éditer une catégorie qui n'est pas la sienne", async ({ page }) => {
+    await page.addInitScript(buildMockSupabaseInitScript({
+      categories: [
+        { id: 1, name: "U13", min_age: 11, max_age: 13 },
+        { id: 2, name: "U15", min_age: 14, max_age: 15 }
+      ],
+      profiles: [{ id: "coach-1", email: "coach@test.dev", first_name: "Cathy", last_name: "Coach", role: "coach", assigned_category_id: 1 }],
+      plans: [], days: [], exercises: [], validations: []
+    }, "coach-1"));
+    await installMockRoutes(page);
+    await page.goto("/index.html");
+
+    await page.click('#sectionNav [data-id="program"]');
+    await page.selectOption("#edCategory", "2");
+
+    await expect(page.getByText("Lecture seule")).toBeVisible();
+    await expect(page.locator("#edCreatePlan")).toHaveCount(0);
   });
 });

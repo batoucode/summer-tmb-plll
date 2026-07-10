@@ -21,20 +21,19 @@
     <button id="themeToggle" class="btn-ghost theme-toggle" type="button" aria-label="Changer de thème">🌙</button>
     <span id="topbarUserName" class="user-name"></span>
     <span id="topbarUserRole" class="role-badge"></span>
-    <button id="settingsBtn" class="btn-ghost hidden" type="button">⚙️ Paramètres</button>
     <button id="logoutBtn" class="btn-ghost">Déconnexion</button>
   </div>
 </header>
 
+<nav id="sectionNav" class="section-nav hidden" aria-label="Navigation principale"></nav>
+
 <main id="appRoot">
   <section id="view-auth" class="view"></section>
+  <section id="view-training" class="view hidden"></section>
+  <section id="view-program" class="view hidden"></section>
   <section id="view-admin" class="view hidden"></section>
-  <section id="view-coach" class="view hidden"></section>
-  <section id="view-player" class="view hidden"></section>
   <section id="view-settings" class="view hidden"></section>
 </main>
-
-<nav id="bottomNav" class="bottom-nav hidden" aria-label="Navigation principale"></nav>
 
 <div id="toast" class="toast hidden"></div>
 
@@ -51,12 +50,12 @@
 <script src="assets/js/11-data-api.js"></script>
 <script src="assets/js/12-seed.js"></script>
 <script src="assets/js/20-nav.js"></script>
-<script src="assets/js/25-bottom-nav.js"></script>
+<script src="assets/js/25-section-nav.js"></script>
 <script src="assets/js/30-view-auth.js"></script>
 <script src="assets/js/40-component-program-editor.js"></script>
 <script src="assets/js/50-view-admin.js"></script>
-<script src="assets/js/60-view-coach.js"></script>
-<script src="assets/js/70-view-player.js"></script>
+<script src="assets/js/60-view-program.js"></script>
+<script src="assets/js/70-view-training.js"></script>
 <script src="assets/js/80-view-settings.js"></script>
 <script src="assets/js/90-bootstrap.js"></script>
 </body>

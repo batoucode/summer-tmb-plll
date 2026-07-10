@@ -31,17 +31,22 @@ dans le navigateur, sur téléphone comme sur ordinateur.
 
 ## 2. Qui fait quoi ?
 
-L'app a 3 types de comptes :
+L'app a 3 types de comptes, et une **même navigation par sections**
+pour tout le monde — seules les sections visibles changent selon le
+rôle :
 
-| Compte | Ce qu'il peut faire |
-|---|---|
-| 🧑‍💼 **Admin** | Voit et gère tout : les comptes des joueurs/coachs, et le programme de **toutes** les catégories |
-| 🧑‍🏫 **Coach** | Modifie le programme de **sa seule** catégorie (objectif de la semaine, échauffement, exercices) |
-| 🏀 **Joueur** | Voit le programme de sa catégorie, coche ses séances, suit sa progression |
+| Section | Admin | Coach | Joueur | Ce que ça fait |
+|---|---|---|---|---|
+| 🏃 **Entraînement** | ✅ (si catégorie assignée) | ✅ (si catégorie assignée) | ✅ | Semaine en cours, jours, validation des exercices — pour sa propre progression |
+| 📋 **Programme** | ✅ (toutes catégories) | ✅ (édition sur sa catégorie, lecture seule sur les autres) | ❌ | Objectif de la semaine, échauffement, exercices — sélecteur de catégorie en haut |
+| 🧑‍💼 **Admin** | ✅ | ❌ | ❌ | Gestion des comptes (rôle, catégorie, identifiant), import du programme par défaut |
+| 👤 **Profil** | ✅ | ✅ | ✅ | Son propre identifiant, sa catégorie, son mot de passe |
 
-La **catégorie** (U13, U15, U18 ou NM3) d'un joueur est choisie
-directement à l'inscription, et modifiable ensuite (par la personne
-elle-même depuis *Paramètres*, ou par l'admin).
+Comme la section Entraînement dépend uniquement d'avoir une catégorie
+assignée (pas du rôle), un admin ou un coach peut lui aussi suivre son
+propre entraînement personnel s'il a une catégorie, en plus de gérer
+l'app. Et un coach voit également les stats de régularité de ses
+joueurs, dans un sous-onglet de Programme.
 
 ---
 
@@ -51,18 +56,21 @@ elle-même depuis *Paramètres*, ou par l'admin).
    nom, catégorie (email optionnel). Un compte "Joueur" est créé
    automatiquement, avec la catégorie choisie.
 2. **On se connecte** avec son identifiant et son mot de passe : l'app
-   affiche directement le bon écran selon le type de compte (Admin /
-   Coach / Joueur).
+   atterrit directement sur la bonne section selon le type de compte
+   (Admin → gestion des comptes, Coach/Joueur → Entraînement), puis on
+   navigue librement entre les sections accessibles via la barre de
+   navigation (en haut sur ordinateur, en bas sur mobile).
 3. **L'admin** peut transformer un joueur en coach et lui assigner une
-   catégorie, depuis l'onglet *Utilisateurs*. **Le coach et le joueur**
-   peuvent modifier leur propre identifiant, catégorie et mot de passe
-   depuis le menu *Paramètres* (topbar).
-4. **Le coach** choisit une semaine, puis un jour, remplit les
-   informations (objectif, échauffement, liste d'exercices) et clique
-   sur *Publier*.
-5. **Le joueur** ouvre sa semaine, voit ses 7 jours (avec un pastille
-   "Fait" / "À faire" / "Repos" sur chacun), entre dans un jour et
-   coche ses exercices — ou valide toute la séance en un seul clic.
+   catégorie, depuis la section *Admin*. **Tout le monde** peut modifier
+   son propre identifiant, catégorie et mot de passe depuis la section
+   *Profil*.
+4. **Le coach** (ou l'admin) ouvre la section *Programme*, choisit une
+   catégorie, une semaine, puis un jour, remplit les informations
+   (objectif, échauffement, liste d'exercices) et clique sur *Publier*.
+5. **Le joueur** ouvre la section *Entraînement*, voit ses 7 jours (avec
+   une pastille "Fait" / "À faire" / "Repos" sur chacun), entre dans un
+   jour et coche ses exercices — ou valide toute la séance en un seul
+   clic.
 
 Tout est sauvegardé en ligne : la progression suit le joueur, qu'il se
 connecte depuis son téléphone ou un ordinateur.
@@ -89,7 +97,7 @@ nouvelle instance) :
 2. Copier-coller l'intégralité de `supabase/schema.sql` et l'exécuter.
 3. Créer un premier compte via l'app — il devient automatiquement
    Admin.
-4. Se connecter avec ce compte → onglet *Utilisateurs* → bouton **📥
+4. Se connecter avec ce compte → section *Admin* → bouton **📥
    Importer le programme par défaut** (charge les 5 semaines depuis
    `assets/default_program.json`).
 
@@ -141,7 +149,7 @@ Ce README reste volontairement simple. Pour le détail technique :
   accès de connexion (nécessite une action côté tableau de bord
   Supabase).
 - L'admin ne peut pas réinitialiser le mot de passe d'un autre compte
-  depuis l'app — la personne doit le changer elle-même (*Paramètres*),
+  depuis l'app — la personne doit le changer elle-même (*Profil*),
   ou l'admin passe par le tableau de bord Supabase.
 - Les catégories U13 et U15 partagent le même programme par défaut.
 
@@ -154,7 +162,7 @@ Détails complets dans `docs/SECURITY.md`.
 ```
 index.html                     Page d'entrée (charge les modules dans le bon ordre)
 assets/
-  js/                          Les 14 modules de l'app (voir docs/ARCHITECTURE.md)
+  js/                          Les 16 modules de l'app (voir docs/ARCHITECTURE.md)
   style.css                    Design (couleurs, espacements... tout centralisé en haut)
   supabase-config.js           Adresse + clé publique de la base de données
   default_program.json         Programme par défaut (5 semaines × 4 catégories)

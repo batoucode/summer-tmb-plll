@@ -44,6 +44,7 @@
     <a href="#boutons">Boutons</a>
     <a href="#badges">Badges &amp; pastilles</a>
     <a href="#onglets">Onglets</a>
+    <a href="#section-nav">Navigation</a>
     <a href="#formulaires">Formulaires</a>
     <a href="#cartes">Cartes</a>
     <a href="#tableau">Tableau admin</a>
@@ -139,8 +140,8 @@
     </div>
     <div class="dg-row" style="margin-bottom:16px">
       <div class="tabs">
-        <button class="tab active">👥 Utilisateurs</button>
-        <button class="tab">📋 Programmes</button>
+        <button class="tab active">✏️ Éditer</button>
+        <button class="tab">📊 Stats joueurs</button>
       </div>
     </div>
     <div class="week-tabs" style="margin-bottom:8px">
@@ -160,6 +161,24 @@
       <button class="week-tab is-rest">Mer</button>
       <button class="week-tab is-empty">Jeu</button>
       <button class="week-tab">🏆</button>
+    </div>
+  </section>
+
+  <section class="dg-section" id="section-nav">
+    <h2>Barre de navigation entre sections</h2>
+    <p class="dg-hint">
+      <code class="dg-code">.section-nav</code> (assets/js/25-section-nav.js) — rangée de
+      pastilles sous la topbar sur desktop, pilule flottante en bas d'écran sur mobile
+      (redimensionne la fenêtre pour voir le changement). Exemple ci-dessous : vue Admin
+      (4 sections).
+    </p>
+    <div class="dg-frame" style="padding:0;overflow:hidden">
+      <nav class="section-nav" style="position:static;max-width:none;margin:0;padding:14px">
+        <button type="button" class="section-nav-item active"><span class="sn-icon">🏃</span><span>Entraînement</span></button>
+        <button type="button" class="section-nav-item"><span class="sn-icon">📋</span><span>Programme</span></button>
+        <button type="button" class="section-nav-item"><span class="sn-icon">🧑‍💼</span><span>Admin</span></button>
+        <button type="button" class="section-nav-item"><span class="sn-icon">👤</span><span>Profil</span></button>
+      </nav>
     </div>
   </section>
 

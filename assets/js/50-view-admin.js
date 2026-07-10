@@ -1,48 +1,27 @@
 /* ============================================================
    TMB SUMMER BOOK — 50. VUE ADMIN
-   Onglet Utilisateurs (rôles, catégories, création de compte, seed) +
-   onglet Programmes (composant partagé, catégorie libre).
+   Gestion des comptes : rôles, catégories, identifiants, création de
+   compte, import du programme par défaut. La gestion du programme lui-
+   même (exercices, objectifs...) vit désormais dans la section Programme
+   (60-view-program.js), partagée avec le coach.
    ============================================================ */
 (function () {
   "use strict";
-  const { $, $$, el, escapeHtml, toast, fullName, ROLE_LABELS } = window.TMB.core;
+  const { $, el, escapeHtml, toast, fullName, ROLE_LABELS } = window.TMB.core;
   const data = window.TMB.data;
-
-  let adminTab = "users";
-
-  /* Utilisé par la barre de navigation basse mobile (25-bottom-nav.js)
-     pour changer d'onglet depuis en dehors de ce module — voir aussi
-     l'onglet interne .tabs ci-dessous (desktop), qui reste inchangé. */
-  function setAdminTab(tab) {
-    adminTab = tab;
-    window.TMB.nav.showView("admin");
-    renderAdminView();
-  }
-  function getAdminTab() {
-    return adminTab;
-  }
 
   async function renderAdminView() {
     const root = $("#view-admin");
     root.innerHTML = `
       <div class="page">
         <div class="page-title">Espace Administrateur</div>
-        <div class="tabs">
-          <button class="tab ${adminTab === "users" ? "active" : ""}" data-tab="users">👥 Utilisateurs</button>
-          <button class="tab ${adminTab === "program" ? "active" : ""}" data-tab="program">🧑‍🏫 Vue Coach</button>
-        </div>
-        <div id="adminTabBody"></div>
+        <div id="adminBody"><div class="empty-state">Chargement…</div></div>
       </div>
     `;
-    $$(".tab", root).forEach((btn) => btn.addEventListener("click", () => { adminTab = btn.dataset.tab; renderAdminView(); }));
-
-    const body = $("#adminTabBody", root);
-    if (adminTab === "users") await renderAdminUsersTab(body);
-    else await renderAdminProgramTab(body);
+    await renderAdminUsers($("#adminBody", root));
   }
 
-  async function renderAdminUsersTab(body) {
-    body.innerHTML = `<div class="empty-state">Chargement…</div>`;
+  async function renderAdminUsers(body) {
     let users;
     try { users = await data.loadAllUsers(); } catch (err) { body.innerHTML = `<div class="empty-state">${escapeHtml(err.message)}</div>`; return; }
 
@@ -134,7 +113,7 @@
           <div class="field"><label>Nom</label><input type="text" id="npLast"></div>
         </div>
         <div class="field-row">
-          <div class="field"><label>Identifiant de connexion</label><input type="text" id="npUsername" pattern="[a-zA-Z0-9_.\-]{3,24}"></div>
+          <div class="field"><label>Identifiant de connexion</label><input type="text" id="npUsername" pattern="[a-zA-Z0-9_.\\-]{3,24}"></div>
           <div class="field">
             <label>Catégorie</label>
             <select id="npCategory">${catOptions()}</select>
@@ -142,7 +121,7 @@
         </div>
         <div class="field"><label>Email (optionnel)</label><input type="email" id="npEmail"></div>
         <div class="field"><label>Mot de passe temporaire</label><input type="text" id="npPass" placeholder="min. 6 caractères"></div>
-        <p class="auth-hint">Aucun envoi d'e-mail automatique n'est possible depuis une app statique sans clé service_role. Communique l'identifiant et ce mot de passe temporaire directement à la personne concernée ; elle pourra les changer plus tard depuis Paramètres.</p>
+        <p class="auth-hint">Aucun envoi d'e-mail automatique n'est possible depuis une app statique sans clé service_role. Communique l'identifiant et ce mot de passe temporaire directement à la personne concernée ; elle pourra les changer plus tard depuis Profil.</p>
         <button class="btn-primary" id="npSubmit">Créer le compte</button>
       `;
       $("#npSubmit", box).addEventListener("click", async () => {
@@ -158,7 +137,7 @@
           });
           toast("Compte créé.");
           box.classList.add("hidden");
-          await renderAdminUsersTab(body);
+          await renderAdminUsers(body);
         } catch (err) { toast(err.message || String(err), true); }
       });
     });
@@ -182,21 +161,5 @@
     }
   }
 
-  async function renderAdminProgramTab(body) {
-    const categories = window.TMB.state.categories;
-    if (!categories.length) {
-      body.innerHTML = `<div class="empty-state">Aucune catégorie : importe d'abord le programme par défaut depuis l'onglet Utilisateurs.</div>`;
-      return;
-    }
-    await window.TMB.components.programEditor.mountCoachStyleView(body, {
-      categoryId: categories[0].id,
-      allowedCategories: null,
-      lockCategory: false,
-      nested: true
-    });
-  }
-
   window.TMB.views.admin.render = renderAdminView;
-  window.TMB.views.admin.setTab = setAdminTab;
-  window.TMB.views.admin.getTab = getAdminTab;
 })();

@@ -27,6 +27,14 @@
     return data || [];
   }
 
+  async function loadPlayersByCategory(categoryId) {
+    const { data, error } = await sb.from("tmb_profiles")
+      .select("*").eq("role", "player").eq("assigned_category_id", categoryId)
+      .order("last_name", { ascending: true, nullsFirst: false });
+    if (error) throw error;
+    return data || [];
+  }
+
   async function updateUserRole(userId, newRole, categoryId) {
     const { error } = await sb.from("tmb_profiles").update({ role: newRole, assigned_category_id: categoryId }).eq("id", userId);
     if (error) throw error;
@@ -152,7 +160,7 @@
   }
 
   Object.assign(window.TMB.data, {
-    loadCategories, loadUserProfile, loadAllUsers, updateUserRole, deleteUserProfile,
+    loadCategories, loadUserProfile, loadAllUsers, loadPlayersByCategory, updateUserRole, deleteUserProfile,
     updateProfileFields, checkUsernameAvailable,
     loadProgram, ensurePlan, updatePlan, ensureDay, updateDay,
     updateExercise, addExercise, deleteExercise,

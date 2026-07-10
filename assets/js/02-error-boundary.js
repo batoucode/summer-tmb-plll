@@ -16,10 +16,10 @@
 (function () {
   "use strict";
 
-  // Toujours appeler avec une fonction "thunk" : safeRender("coach", () =>
-  // TMB.views.coach.render(), "#view-coach") — PAS safeRender("coach",
-  // TMB.views.coach.render, ...). Avec une thunk, l'éventuelle erreur
-  // d'évaluation de `TMB.views.coach.render` elle-même (namespace pas
+  // Toujours appeler avec une fonction "thunk" : safeRender("training", () =>
+  // TMB.views.training.render(), "#view-training") — PAS safeRender("training",
+  // TMB.views.training.render, ...). Avec une thunk, l'éventuelle erreur
+  // d'évaluation de `TMB.views.training.render` elle-même (namespace pas
   // encore prêt) se produit À L'INTÉRIEUR du try/catch ci-dessous, pas
   // avant. Sans thunk, cette erreur échapperait au filet.
   async function safeRender(moduleName, renderFn, containerSelector) {

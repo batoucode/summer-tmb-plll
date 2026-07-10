@@ -58,8 +58,8 @@ l'API REST directement (en contournant l'interface) voit sa requête
 choix délibéré (échec silencieux côté trigger plutôt que rejet, pour
 rester simple), testé par `security/05-role-selfescalation-blocked.js`.
 
-`assigned_category_id` n'est **pas** verrouillé par ce trigger : un
-coach/joueur peut changer sa propre catégorie depuis l'écran Paramètres
+`assigned_category_id` n'est **pas** verrouillé par ce trigger : chacun
+peut changer sa propre catégorie depuis l'écran Profil
 (`assets/js/80-view-settings.js`) — c'est volontaire, la catégorie est
 un critère de visibilité de contenu, pas une frontière de sécurité au
 même titre que le rôle.
@@ -95,7 +95,7 @@ quelconque devienne admin au prochain signup.
   compte), pas une faille, mais bon à savoir si ce code est modifié.
 - **`video_url` n'est pas validé côté schéma.** Un coach/admin peut
   écrire n'importe quelle chaîne dans `tmb_exercises.video_url`,
-  injectée telle quelle dans un `<a href>` (`assets/js/70-view-player.js`).
+  injectée telle quelle dans un `<a href>` (`assets/js/70-view-training.js`).
   Risque faible (seuls admin/coach peuvent l'écrire, protégés par RLS),
   mais en défense en profondeur, un futur renforcement pourrait
   restreindre les schémas acceptés (`https://` uniquement) côté
@@ -112,7 +112,7 @@ quelconque devienne admin au prochain signup.
   via pgcrypto a été jugé trop risqué (incompatibilité potentielle avec
   le format interne de GoTrue selon les versions de Supabase) pour un
   gain limité. La personne concernée doit changer son propre mot de
-  passe via l'écran Paramètres (`assets/js/80-view-settings.js`), ou
+  passe via l'écran Profil (`assets/js/80-view-settings.js`), ou
   l'admin passe par le tableau de bord Supabase directement.
 
 ---

@@ -5,8 +5,8 @@ const { buildMockSupabaseInitScript, installMockRoutes } = require("./helpers/mo
 /* Vérifie le mécanisme central de docs/ARCHITECTURE.md §5 : un module
    de vue qui plante affiche une carte d'erreur DANS SON SEUL
    conteneur, sans casser la topbar ni le bouton de déconnexion. On
-   sabote le fichier réseau du module Joueur (70-view-player.js) pour
-   simuler "un bug livré dans ce module précis", sans toucher aux
+   sabote le fichier réseau du module Entraînement (70-view-training.js)
+   pour simuler "un bug livré dans ce module précis", sans toucher aux
    autres. */
 
 const db = {
@@ -18,10 +18,10 @@ const db = {
 test("un module de vue cassé affiche une carte d'erreur locale sans casser le reste", async ({ page }) => {
   await page.addInitScript(buildMockSupabaseInitScript(db, "player-1"));
   await installMockRoutes(page);
-  await page.route("**/70-view-player.js", (route) => route.fulfill({
+  await page.route("**/70-view-training.js", (route) => route.fulfill({
     status: 200,
     contentType: "application/javascript",
-    body: `window.TMB.views.player.render = function () { throw new Error("Panne simulée dans le module Joueur"); };`
+    body: `window.TMB.views.training.render = function () { throw new Error("Panne simulée dans le module Entraînement"); };`
   }));
 
   const consoleErrors = [];
@@ -30,7 +30,7 @@ test("un module de vue cassé affiche une carte d'erreur locale sans casser le r
   await page.goto("/index.html");
 
   await expect(page.locator(".error-card")).toBeVisible();
-  await expect(page.locator(".error-card")).toContainText("player");
+  await expect(page.locator(".error-card")).toContainText("training");
   await expect(page.locator("#topbar")).toBeVisible();
   await expect(page.locator("#logoutBtn")).toBeVisible();
 
@@ -38,16 +38,16 @@ test("un module de vue cassé affiche une carte d'erreur locale sans casser le r
   const loggedOut = await page.evaluate(() => window.__LOGGED_OUT__ === true);
   expect(loggedOut).toBe(true);
 
-  expect(consoleErrors.some((e) => e.includes("[TMB:player]"))).toBe(true);
+  expect(consoleErrors.some((e) => e.includes("[TMB:training]"))).toBe(true);
 });
 
 test("le bouton Réessayer relance le rendu de la session", async ({ page }) => {
   await page.addInitScript(buildMockSupabaseInitScript(db, "player-1"));
   await installMockRoutes(page);
-  await page.route("**/70-view-player.js", (route) => route.fulfill({
+  await page.route("**/70-view-training.js", (route) => route.fulfill({
     status: 200,
     contentType: "application/javascript",
-    body: `window.TMB.views.player.render = function () { throw new Error("Panne simulée"); };`
+    body: `window.TMB.views.training.render = function () { throw new Error("Panne simulée"); };`
   }));
   await page.goto("/index.html");
 

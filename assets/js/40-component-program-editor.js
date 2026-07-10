@@ -1,20 +1,23 @@
 /* ============================================================
    TMB SUMMER BOOK — 40. COMPOSANT PARTAGÉ : ÉDITEUR DE PROGRAMME
-   Utilisé par 50-view-admin.js (catégorie libre) et 60-view-coach.js
-   (catégorie verrouillée sur celle du coach). Contrat :
+   Utilisé par 60-view-program.js (section Programme, admin + coach).
+   L'édition réelle (Publier, ajouter/supprimer un exercice...) n'est
+   proposée que si canEditCategory() l'autorise — admin toujours, coach
+   seulement pour sa propre catégorie ; sinon affichage en lecture seule
+   (pastille "👁️ Lecture seule"). Contrat :
 
      TMB.components.programEditor.mount(container, {
        categoryId,              // id de catégorie initialement affichée
        week,                    // numéro de semaine initial (1-5)
        allowedCategories,       // liste des catégories sélectionnables
                                  // (null = toutes, cf. TMB.state.categories)
-       lockCategory              // true = pas de sélecteur (vue coach)
+       lockCategory              // true = pas de sélecteur de catégorie
      })
 
-   Une erreur ici remonte à l'appelant (admin ou coach) et s'affiche
-   donc comme une erreur de LEUR vue — c'est normal et documenté dans
-   docs/ARCHITECTURE.md (le composant n'a pas sa propre carte d'erreur
-   séparée, il n'a pas de conteneur de vue à lui).
+   Une erreur ici remonte à l'appelant et s'affiche donc comme une
+   erreur de SA vue — c'est normal et documenté dans docs/ARCHITECTURE.md
+   (le composant n'a pas sa propre carte d'erreur séparée, il n'a pas de
+   conteneur de vue à lui).
    ============================================================ */
 (function () {
   "use strict";
@@ -66,11 +69,24 @@
   }
   function numOrNull(v) { return v === "" || v == null ? null : Number(v); }
 
+  /* Un admin peut toujours éditer ; un coach uniquement sa propre
+     catégorie (les autres s'affichent en lecture seule, pas d'écriture
+     possible côté RLS de toute façon — voir tmb_plans_write et
+     consorts dans supabase/schema.sql). Un joueur n'atteint jamais ce
+     composant (section Programme masquée pour son rôle). */
+  function canEditCategory(categoryId) {
+    const profile = window.TMB.state.profile;
+    if (!profile) return false;
+    if (profile.role === "admin") return true;
+    if (profile.role === "coach") return categoryId === profile.assigned_category_id;
+    return false;
+  }
+
   /* Monte l'éditeur de programme dans `container` pour la catégorie et
      semaine données. Si `lockCategory` est vrai, aucun sélecteur de
-     catégorie n'est affiché (cas coach). Le programme est organisé par
-     jour (Lundi à Dimanche + un créneau bonus "Défi") : on édite un jour
-     à la fois, sélectionné via des onglets. */
+     catégorie n'est affiché. Le programme est organisé par jour (Lundi
+     à Dimanche + un créneau bonus "Défi") : on édite un jour à la fois,
+     sélectionné via des onglets. */
   async function mountProgramEditor(container, opts) {
     const state = {
       categoryId: opts.categoryId,
@@ -95,6 +111,7 @@
 
     function draw() {
       const categories = window.TMB.state.categories;
+      const editable = canEditCategory(state.categoryId);
       const catOptions = (state.allowedCategories || categories)
         .map((c) => `<option value="${c.id}" ${c.id === state.categoryId ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("");
       const weekTabs = [1, 2, 3, 4, 5].map((w) =>
@@ -106,6 +123,7 @@
             ? `<div class="locked-cat">Catégorie : <strong>${escapeHtml((categories.find((c) => c.id === state.categoryId) || {}).name || "—")}</strong></div>`
             : `<div class="field"><label>Catégorie</label><select id="edCategory">${catOptions}</select></div>`}
           <div class="week-tabs">${weekTabs}</div>
+          ${!editable ? `<span class="status-pill">👁️ Lecture seule</span>` : ""}
         </div>
 
         ${state.plan ? `
@@ -113,11 +131,11 @@
           <div class="section-eyebrow">Semaine</div>
           <div class="field">
             <label>Objectif de la semaine</label>
-            <textarea id="edObjective" rows="2">${escapeHtml(state.plan.objective || "")}</textarea>
+            <textarea id="edObjective" rows="2" ${editable ? "" : "disabled"}>${escapeHtml(state.plan.objective || "")}</textarea>
           </div>
           <div class="field">
             <label>Mot du staff</label>
-            <textarea id="edStaffQuote" rows="2">${escapeHtml(state.plan.staff_quote || "")}</textarea>
+            <textarea id="edStaffQuote" rows="2" ${editable ? "" : "disabled"}>${escapeHtml(state.plan.staff_quote || "")}</textarea>
           </div>
         </div>
 
@@ -133,7 +151,7 @@
         ` : `
         <div class="empty-state">
           <p>Aucun plan pour cette catégorie et cette semaine.</p>
-          <button type="button" class="btn-primary" id="edCreatePlan">Créer le plan de la semaine ${state.week}</button>
+          ${editable ? `<button type="button" class="btn-primary" id="edCreatePlan">Créer le plan de la semaine ${state.week}</button>` : ""}
         </div>`}
       `;
 
@@ -149,13 +167,15 @@
       }));
 
       if (!state.plan) {
-        $("#edCreatePlan", container).addEventListener("click", async () => {
-          try {
-            state.plan = await data.ensurePlan(state.categoryId, state.week);
-            state.days = [];
-            draw();
-          } catch (err) { toast(err.message || String(err), true); }
-        });
+        if (editable) {
+          $("#edCreatePlan", container).addEventListener("click", async () => {
+            try {
+              state.plan = await data.ensurePlan(state.categoryId, state.week);
+              state.days = [];
+              draw();
+            } catch (err) { toast(err.message || String(err), true); }
+          });
+        }
         return;
       }
 
@@ -165,8 +185,10 @@
         drawDay();
       }));
 
-      $("#edObjective", container).addEventListener("blur", () => saveWeekInfo());
-      $("#edStaffQuote", container).addEventListener("blur", () => saveWeekInfo());
+      if (editable) {
+        $("#edObjective", container).addEventListener("blur", () => saveWeekInfo());
+        $("#edStaffQuote", container).addEventListener("blur", () => saveWeekInfo());
+      }
 
       drawDay();
     }
@@ -184,21 +206,24 @@
       const body = $("#edDayBody", container);
       const day = dayByIndex(state.dayIndex);
       const dayLabel = DAY_LABELS[state.dayIndex];
+      const editable = canEditCategory(state.categoryId);
 
       if (!day) {
         body.innerHTML = `
           <div class="empty-state">
             <p>${escapeHtml(dayLabel)} n'a pas encore de séance définie.</p>
-            <button type="button" class="btn-primary" id="edCreateDay">Créer ${state.dayIndex === 7 ? "le défi bonus" : "ce jour"}</button>
+            ${editable ? `<button type="button" class="btn-primary" id="edCreateDay">Créer ${state.dayIndex === 7 ? "le défi bonus" : "ce jour"}</button>` : ""}
           </div>`;
-        $("#edCreateDay", body).addEventListener("click", async () => {
-          try {
-            const newDay = await data.ensureDay(state.plan.id, state.dayIndex);
-            state.days.push(newDay);
-            state.exoEditMode = false;
-            drawDay();
-          } catch (err) { toast(err.message || String(err), true); }
-        });
+        if (editable) {
+          $("#edCreateDay", body).addEventListener("click", async () => {
+            try {
+              const newDay = await data.ensureDay(state.plan.id, state.dayIndex);
+              state.days.push(newDay);
+              state.exoEditMode = false;
+              drawDay();
+            } catch (err) { toast(err.message || String(err), true); }
+          });
+        }
         return;
       }
 
@@ -208,22 +233,22 @@
           <div class="field-row">
             <div class="field field-grow">
               <label>Intitulé de la séance</label>
-              <input type="text" id="dyLabel" value="${escapeHtml(day.label || "")}" placeholder="ex: Force bas du corps">
+              <input type="text" id="dyLabel" value="${escapeHtml(day.label || "")}" placeholder="ex: Force bas du corps" ${editable ? "" : "disabled"}>
             </div>
           </div>
           ${state.dayIndex < 7 ? `
           <label class="checkbox-row">
-            <input type="checkbox" id="dyIsRest" ${day.is_rest ? "checked" : ""}>
+            <input type="checkbox" id="dyIsRest" ${day.is_rest ? "checked" : ""} ${editable ? "" : "disabled"}>
             <span>Jour de repos (aucun exercice)</span>
           </label>` : ""}
           <div class="field-row" id="dyDetailsFields" style="${day.is_rest ? "display:none" : ""}">
             <div class="field field-grow">
               <label>Échauffement</label>
-              <textarea id="dyWarmup" rows="2">${escapeHtml(day.warmup || "")}</textarea>
+              <textarea id="dyWarmup" rows="2" ${editable ? "" : "disabled"}>${escapeHtml(day.warmup || "")}</textarea>
             </div>
             <div class="field">
               <label>RPE cible</label>
-              <input type="text" id="dyRpe" value="${escapeHtml(day.rpe || "")}" placeholder="ex: 7/10">
+              <input type="text" id="dyRpe" value="${escapeHtml(day.rpe || "")}" placeholder="ex: 7/10" ${editable ? "" : "disabled"}>
             </div>
           </div>
         </div>
@@ -233,10 +258,10 @@
           <div id="edExoBody"></div>
         </div>
 
-        <button type="button" class="btn-primary btn-block btn-publish" id="edPublish">📤 Publier les modifications</button>
+        ${editable ? `<button type="button" class="btn-primary btn-block btn-publish" id="edPublish">📤 Publier les modifications</button>` : ""}
       `;
 
-      if (state.dayIndex < 7) {
+      if (state.dayIndex < 7 && editable) {
         $("#dyIsRest", body).addEventListener("change", (e) => {
           $("#dyDetailsFields", body).style.display = e.target.checked ? "none" : "";
           $("#dyExoSection", body).style.display = e.target.checked ? "none" : "";
@@ -247,7 +272,7 @@
 
       function drawExoBody() {
         const exoBody = $("#edExoBody", body);
-        if (!state.exoEditMode) {
+        if (!editable || !state.exoEditMode) {
           exoBody.innerHTML = day.exercises.length ? `
             <div class="table-scroll">
               <table class="data-table">
@@ -265,11 +290,13 @@
               </table>
             </div>
           ` : `<div class="empty-state">Aucun exercice pour cette séance.</div>`;
-          exoBody.insertAdjacentHTML("beforeend", `<button type="button" class="btn-secondary" id="edToggleExoEdit">✏️ Modifier les exercices</button>`);
-          $("#edToggleExoEdit", exoBody).addEventListener("click", () => {
-            state.exoEditMode = true;
-            drawExoBody();
-          });
+          if (editable) {
+            exoBody.insertAdjacentHTML("beforeend", `<button type="button" class="btn-secondary" id="edToggleExoEdit">✏️ Modifier les exercices</button>`);
+            $("#edToggleExoEdit", exoBody).addEventListener("click", () => {
+              state.exoEditMode = true;
+              drawExoBody();
+            });
+          }
           return;
         }
 
@@ -314,63 +341,49 @@
         });
       }
 
-      $("#edPublish", body).addEventListener("click", async () => {
-        const btn = $("#edPublish", body);
-        btn.disabled = true;
-        btn.textContent = "Publication…";
-        try {
-          const isRest = state.dayIndex < 7 && $("#dyIsRest", body).checked;
-          await data.updateDay(day.id, {
-            label: $("#dyLabel", body).value.trim(),
-            is_rest: isRest,
-            warmup: isRest ? null : ($("#dyWarmup", body).value.trim() || null),
-            rpe: isRest ? null : ($("#dyRpe", body).value.trim() || null)
-          });
-          if (!isRest) {
-            const cards = $$(".exo-edit-card", body);
-            for (let i = 0; i < cards.length; i++) {
-              const card = cards[i];
-              const rowData = readExerciseCard(card);
-              const id = card.dataset.id;
-              if (!rowData.name) continue;
-              if (id) {
-                await data.updateExercise(id, { ...rowData, position: i });
-              } else {
-                await data.addExercise(day.id, { ...rowData, position: i });
+      const publishBtn = $("#edPublish", body);
+      if (publishBtn) {
+        publishBtn.addEventListener("click", async () => {
+          const btn = $("#edPublish", body);
+          btn.disabled = true;
+          btn.textContent = "Publication…";
+          try {
+            const isRest = state.dayIndex < 7 && $("#dyIsRest", body).checked;
+            await data.updateDay(day.id, {
+              label: $("#dyLabel", body).value.trim(),
+              is_rest: isRest,
+              warmup: isRest ? null : ($("#dyWarmup", body).value.trim() || null),
+              rpe: isRest ? null : ($("#dyRpe", body).value.trim() || null)
+            });
+            if (!isRest) {
+              const cards = $$(".exo-edit-card", body);
+              for (let i = 0; i < cards.length; i++) {
+                const card = cards[i];
+                const rowData = readExerciseCard(card);
+                const id = card.dataset.id;
+                if (!rowData.name) continue;
+                if (id) {
+                  await data.updateExercise(id, { ...rowData, position: i });
+                } else {
+                  await data.addExercise(day.id, { ...rowData, position: i });
+                }
               }
             }
+            state.exoEditMode = false;
+            toast("Programme publié ✅");
+            await load();
+          } catch (err) {
+            toast(err.message || String(err), true);
+          } finally {
+            btn.disabled = false;
+            btn.textContent = "📤 Publier les modifications";
           }
-          state.exoEditMode = false;
-          toast("Programme publié ✅");
-          await load();
-        } catch (err) {
-          toast(err.message || String(err), true);
-        } finally {
-          btn.disabled = false;
-          btn.textContent = "📤 Publier les modifications";
-        }
-      });
+        });
+      }
     }
 
     await load();
   }
 
-  /* Rend la même mise en page "Espace Coach" (titre + éditeur de
-     programme) pour le coach lui-même ET pour l'admin qui veut voir/éditer
-     exactement ce que voient les coachs, catégorie par catégorie.
-     `nested: true` = ne pas ré-envelopper dans .page (l'appelant l'a déjà
-     fait, cas de l'onglet Admin qui vit dans sa propre page). */
-  async function mountCoachStyleView(container, { categoryId, allowedCategories, lockCategory, nested }) {
-    const inner = `
-      <div class="page-title">Espace Coach</div>
-      <div id="coachEditor"></div>
-    `;
-    container.innerHTML = nested ? inner : `<div class="page">${inner}</div>`;
-    await mountProgramEditor($("#coachEditor", container), {
-      categoryId, week: 1, allowedCategories, lockCategory
-    });
-  }
-
   window.TMB.components.programEditor.mount = mountProgramEditor;
-  window.TMB.components.programEditor.mountCoachStyleView = mountCoachStyleView;
 })();

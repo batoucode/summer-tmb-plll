@@ -18,13 +18,14 @@ window.TMB = {
   state: {                    // état partagé, toujours lu "en direct" (jamais copié)
     session: null,
     profile: null,
-    categories: []
+    categories: [],
+    currentSection: null       // section affichée : training/program/admin/settings
   },
   supabase: { client: null, ready: false },
   auth: {},                    // inscription / connexion / déconnexion
   data: {},                     // CRUD programme + validations + seed
-  nav: {},                       // navigation entre vues, topbar
-  components: { programEditor: {} }, // composant partagé admin + coach
-  views: { auth: {}, admin: {}, coach: {}, player: {}, settings: {} },
+  nav: {},                       // navigation entre sections, topbar
+  components: { programEditor: {} }, // composant partagé Programme
+  views: { auth: {}, training: {}, program: {}, admin: {}, settings: {} },
   bootstrap: {}                    // démarrage de session, point d'entrée
 };

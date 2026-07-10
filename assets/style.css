@@ -433,40 +433,46 @@ a { color: var(--tmb-red); }
   .auth-card h1 { font-size: 1.3rem; }
 }
 
-/* ---------- Bottom nav (mobile uniquement) ---------- */
-/* Barre flottante en bas d'écran, remplace sur mobile les boutons de la
-   topbar (Paramètres/Thème/Déconnexion) et les onglets internes de
-   l'espace Admin (Utilisateurs/Programme) — voir assets/js/25-bottom-nav.js.
-   Sur desktop ce bloc reste invisible (display:none par défaut,
-   au-dessus de 640px), la topbar/les onglets habituels restent utilisés
-   tels quels. */
-.bottom-nav { display: none; }
+/* ---------- Section nav (Entraînement / Programme / Admin / Profil) ---------- */
+/* Un seul composant (assets/js/25-section-nav.js), deux présentations :
+   rangée de pastilles sous la topbar sur desktop, pilule flottante en
+   bas d'écran sur mobile (voir media query plus bas). Les sections
+   affichées dépendent du rôle courant. */
+.section-nav {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  max-width: 980px; margin: 0 auto;
+  padding: 14px var(--pad) 0;
+}
+.section-nav-item {
+  display: flex; align-items: center; gap: 8px;
+  border: 1.5px solid var(--border); background: var(--gloss), var(--surface); color: var(--text-dim);
+  font-weight: 700; font-size: 0.9rem; padding: 10px 18px; border-radius: 999px; cursor: pointer;
+  min-height: 44px;
+}
+.section-nav-item .sn-icon { font-size: 1.1rem; line-height: 1; }
+/* Onglet actif : gris en thème clair, rouge TMB en thème sombre (demande
+   explicite : "noir et rouge theme dark et blanc et gris pour le light"). */
+.section-nav-item.active { color: var(--text); background: var(--gloss), var(--border); }
+:root[data-theme="dark"] .section-nav-item.active { color: #fff; background: var(--gloss), var(--tmb-red); border-color: var(--tmb-red); }
 
 @media (max-width: 640px) {
-  .topbar-user #settingsBtn, .topbar-user #themeToggle, .topbar-user #logoutBtn { display: none; }
-  #view-admin .tabs { display: none; }
-  body.has-bottom-nav #appRoot { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+  body.has-section-nav #appRoot { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
 
-  .bottom-nav {
-    display: flex; align-items: stretch; justify-content: space-around; gap: 2px;
+  .section-nav {
     position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-    z-index: 30;
+    z-index: 30; max-width: none; margin: 0; padding: 6px;
+    justify-content: space-around; gap: 2px;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: 999px;
-    padding: 6px;
     box-shadow: var(--shadow-lg);
   }
-  .bottom-nav-item {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    flex: 1; border: none; background: transparent; color: var(--text-faint);
-    font-size: 0.62rem; font-weight: 700; padding: 8px 4px; border-radius: 999px;
-    min-height: 50px; cursor: pointer;
+  .section-nav-item {
+    flex: 1; flex-direction: column; justify-content: center; gap: 2px;
+    border: none; background: transparent;
+    font-size: 0.62rem; padding: 8px 4px; min-height: 50px;
   }
-  .bottom-nav-item .bn-icon { font-size: 1.3rem; line-height: 1; }
-  /* Onglet actif : gris en thème clair, rouge TMB en thème sombre (voir
-     demande explicite : "noir et rouge theme dark et blanc et gris pour
-     le light"). */
-  .bottom-nav-item.active { color: var(--text); background: var(--border); }
-  :root[data-theme="dark"] .bottom-nav-item.active { color: #fff; background: var(--tmb-red); }
+  .section-nav-item .sn-icon { font-size: 1.3rem; }
+  .section-nav-item.active { border-color: transparent; }
+  :root[data-theme="dark"] .section-nav-item.active { border-color: transparent; }
 }

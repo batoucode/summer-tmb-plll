@@ -23,8 +23,16 @@ archivé dans `legacy/app.monolithic.js`.
 **Pourquoi ce découpage ?** Pour que le code soit plus facile à
 comprendre module par module, et surtout pour qu'**un bug dans un
 module n'empêche pas les autres de fonctionner** — par exemple, une
-erreur dans l'écran Coach ne doit pas empêcher un Admin d'utiliser son
-propre écran, ni casser le bouton de déconnexion.
+erreur dans la section Programme ne doit pas empêcher un Admin d'ouvrir
+la section Admin, ni casser le bouton de déconnexion.
+
+Depuis le 10/07/2026, l'app est organisée par **sections** plutôt que
+par rôle : Entraînement, Programme, Admin, Profil (voir §2 et §3). Un
+même rôle peut voir plusieurs sections (ex. un coach voit Entraînement +
+Programme + Profil), et une même section peut servir plusieurs rôles
+(ex. la section Programme sert admin ET coach, avec des droits d'écriture
+différents — voir §6). La barre de navigation (`25-section-nav.js`)
+affiche uniquement les sections pertinentes pour le rôle courant.
 
 ---
 
@@ -40,15 +48,15 @@ assets/
     10-auth.js                       Inscription / connexion / déconnexion
     11-data-api.js                   CRUD programme (catégories/profils/plans/jours/exercices/validations)
     12-seed.js                       Import des données par défaut (default_program.json)
-    20-nav.js                        Navigation entre vues + topbar (doit rester minimal)
-    25-bottom-nav.js                 Barre de navigation flottante en bas d'écran (mobile)
+    20-nav.js                        Affichage des conteneurs de vue + topbar (doit rester minimal)
+    25-section-nav.js                Navigation entre sections (Entraînement/Programme/Admin/Profil), desktop + mobile
     30-view-auth.js                  Écran de connexion / inscription
-    40-component-program-editor.js   Éditeur de programme partagé (Admin + Coach)
-    50-view-admin.js                 Espace Admin (utilisateurs + programmes)
-    60-view-coach.js                 Espace Coach
-    70-view-player.js                Espace Joueur (semaine, jour, validation)
-    80-view-settings.js              Espace Paramètres (coach/joueur) : identifiant, catégorie, mot de passe
-    90-bootstrap.js                  Démarrage, session, dispatch par rôle
+    40-component-program-editor.js   Éditeur de programme partagé (section Programme)
+    50-view-admin.js                 Section Admin (gestion des comptes)
+    60-view-program.js               Section Programme (édition + stats de régularité) — admin/coach
+    70-view-training.js              Section Entraînement (semaine, jour, validation) — tout rôle avec catégorie
+    80-view-settings.js              Section Profil (identifiant, catégorie, mot de passe) — tous rôles
+    90-bootstrap.js                  Démarrage, session, dispatch vers la section d'atterrissage par rôle
     README.md                        Résumé condensé de cette page, au plus près du code
   style.css                          Design system "Sportif & Aéré" — une seule feuille,
                                       tokens (couleurs/espacements/rayons/ombres) en haut
@@ -91,14 +99,15 @@ window.TMB = {
   state: {             // état partagé — toujours lu "en direct", jamais copié
     session: null,
     profile: null,
-    categories: []
+    categories: [],
+    currentSection: null // "training" | "program" | "admin" | "settings" | null
   },
   supabase: { client: null, ready: false },
   auth: {},              // signUp, signIn, signOut, adminCreateAccount, updatePassword
   data: {},               // tout le CRUD + seedDatabase (dont updateProfileFields, checkUsernameAvailable)
-  nav: {},                 // showView, renderTopbar, renderBottomNav
-  components: { programEditor: {} },  // mount() partagé admin/coach
-  views: { auth: {}, admin: {}, coach: {}, player: {}, settings: {} },
+  nav: {},                 // showView, renderTopbar, renderSectionNav
+  components: { programEditor: {} },  // mount() partagé, section Programme
+  views: { auth: {}, training: {}, program: {}, admin: {}, settings: {} },
   bootstrap: {}                          // handleSessionChange, init
 };
 ```
@@ -140,9 +149,10 @@ directement ce que l'app faisait déjà avant ce découpage.
 1. **Chargement** : 16 balises `<script>` séparées. Si un fichier a une
    erreur de syntaxe ou lève une exception à son chargement, les
    fichiers suivants se chargent quand même.
-2. **Rendu** : chaque vue top-level (`auth`, `admin`, `coach`, `player`,
-   `settings`) est rendue via `TMB.errors.safeRender(moduleName, () => ...,
-   containerSelector)` dans `90-bootstrap.js`. Une erreur (synchrone ou
+2. **Rendu** : chaque section top-level (`auth`, `training`, `program`,
+   `admin`, `settings`) est rendue via `TMB.errors.safeRender(moduleName,
+   () => ..., containerSelector)`, dans `90-bootstrap.js` (atterrissage)
+   et `25-section-nav.js` (changement de section). Une erreur (synchrone ou
    promesse rejetée) à l'intérieur affiche une carte d'erreur **dans le
    conteneur de cette vue uniquement** (`.error-card`, voir
    `assets/style.css`) au lieu de planter toute la page.
@@ -165,20 +175,20 @@ flowchart LR
   sbc --> data[11-data-api]
   data --> seed[12-seed]
   core --> nav[20-nav]
-  nav --> bottomNav[25-bottom-nav]
+  nav --> sectionNav[25-section-nav]
   auth --> viewAuth[30-view-auth]
   data --> compEditor[40-component-program-editor]
-  compEditor --> viewAdmin[50-view-admin]
-  compEditor --> viewCoach[60-view-coach]
-  data --> viewPlayer[70-view-player]
+  data --> viewAdmin[50-view-admin]
+  compEditor --> viewProgram[60-view-program]
+  data --> viewTraining[70-view-training]
   data --> viewSettings[80-view-settings]
   err --> boot[90-bootstrap]
   nav --> boot
-  bottomNav --> boot
+  sectionNav --> boot
   viewAuth --> boot
   viewAdmin --> boot
-  viewCoach --> boot
-  viewPlayer --> boot
+  viewProgram --> boot
+  viewTraining --> boot
   viewSettings --> boot
 ```
 
@@ -187,11 +197,11 @@ flowchart LR
 `safeRender` est toujours appelé avec une fonction anonyme :
 
 ```js
-safeRender("coach", () => TMB.views.coach.render(), "#view-coach");
+safeRender("training", () => TMB.views.training.render(), "#view-training");
 ```
 
-et jamais avec la référence directe (`TMB.views.coach.render`). Avec la
-forme directe, si `TMB.views.coach` n'existait pas encore (namespace pas
+et jamais avec la référence directe (`TMB.views.training.render`). Avec
+la forme directe, si `TMB.views.training` n'existait pas encore (namespace pas
 prêt), l'erreur se produirait **en évaluant l'argument**, donc *avant*
 d'entrer dans le `try` de `safeRender` — elle ne serait alors pas
 capturée. Avec la forme `() => ...`, cette même erreur se produit *à
@@ -219,21 +229,31 @@ ce n'est **pas** une sandbox comme une iframe ou un Web Worker :
 ## 6. Contrat du composant partagé : l'éditeur de programme
 
 `TMB.components.programEditor.mount(container, opts)` — utilisé par
-`50-view-admin.js` (onglet Programmes) et `60-view-coach.js`.
+`60-view-program.js` (onglet "Éditer" de la section Programme, pour
+admin et coach).
 
 ```js
 mount(container, {
   categoryId,          // id de catégorie affichée au départ
   week,                // numéro de semaine initial (1 à 5)
   allowedCategories,    // catégories sélectionnables (null = toutes)
-  lockCategory           // true = pas de sélecteur (vue coach)
+  lockCategory           // true = pas de sélecteur de catégorie
 })
 ```
 
+Le composant décide lui-même, catégorie par catégorie, si l'utilisateur
+courant peut éditer (`canEditCategory()` interne, basé sur
+`TMB.state.profile`) : un admin peut toujours, un coach seulement pour
+sa propre catégorie assignée. Sans droit d'écriture, l'affichage bascule
+automatiquement en lecture seule (pastille "👁️ Lecture seule",
+formulaires désactivés, aucun bouton Publier/ajouter/supprimer) — ce
+n'est pas juste une protection RLS silencieuse côté base, l'interface le
+reflète clairement.
+
 Une erreur à l'intérieur du composant remonte à l'appelant : elle
-s'affichera donc comme une erreur du module "admin" ou "coach" selon
-qui l'a appelé, jamais comme une erreur "programEditor" à part — le
-composant n'a pas son propre conteneur de vue, c'est normal.
+s'affichera donc comme une erreur de la section "program", jamais comme
+une erreur "programEditor" à part — le composant n'a pas son propre
+conteneur de vue, c'est normal.
 
 ---
 
@@ -259,10 +279,11 @@ init() (90-bootstrap.js)
   → handleSessionChange()
       → loadUserProfile (11-data-api.js)
       → loadCategories
-      → dispatch par rôle, via safeRender :
-          admin  → 50-view-admin.js  (peut appeler 40-component-program-editor.js)
-          coach  → 60-view-coach.js  (idem, catégorie verrouillée)
-          player → 70-view-player.js
+      → section d'atterrissage par rôle, via safeRender :
+          admin          → "admin"    (50-view-admin.js)
+          coach / player → "training" (70-view-training.js)
+      → renderSectionNav() (25-section-nav.js) — affiche les sections
+        accessibles au rôle courant, navigation libre ensuite entre elles
   → interaction utilisateur → appel TMB.data.* → mise à jour optimiste
     du DOM + toast (succès/erreur)
 ```
@@ -275,8 +296,11 @@ init() (90-bootstrap.js)
 2. Créer le fichier en IIFE, n'écrire que dans une case dédiée de `window.TMB`.
 3. Ajouter la balise `<script>` dans `index.html`, **après** tous ses
    dépendances (voir le diagramme Mermaid §5).
-4. Si c'est une vue top-level : l'enrober avec `TMB.errors.safeRender(...)`
-   dans `90-bootstrap.js`, avec un sélecteur de conteneur dédié.
+4. Si c'est une nouvelle **section top-level** : ajouter son conteneur
+   `<section id="view-<id>">` dans `index.html`, l'ajouter au tableau de
+   `showView()` (`20-nav.js`), l'ajouter à la liste des sections par
+   rôle dans `sectionsForRole()` (`25-section-nav.js`), et enrober son
+   rendu avec `TMB.errors.safeRender(...)`.
 5. Documenter la nouvelle ligne dans `assets/js/README.md` et dans le
    tableau du §2 ci-dessus.
 6. Si le composant a un rendu visuel réutilisable, l'ajouter au

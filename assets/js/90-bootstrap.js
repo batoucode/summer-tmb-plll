@@ -1,7 +1,8 @@
 /* ============================================================
    TMB SUMMER BOOK — 90. BOOTSTRAP
    Point d'entrée : récupère la session, charge le profil, puis
-   dispatch vers la bonne vue par rôle. C'est ici que chaque rendu de
+   dispatch vers la section d'atterrissage par défaut du rôle (admin →
+   Admin, coach/joueur → Entraînement). C'est ici que chaque rendu de
    vue passe par TMB.errors.safeRender (02-error-boundary.js) : une
    panne dans une vue affiche une carte d'erreur locale, ne touche pas
    à la topbar ni au bouton de déconnexion (câblés ci-dessous,
@@ -37,17 +38,10 @@
     try { window.TMB.state.categories = await window.TMB.data.loadCategories(); } catch (e) { window.TMB.state.categories = []; }
 
     const role = window.TMB.state.profile.role;
-    if (role === "admin") {
-      showView("admin");
-      await safeRender("admin", () => window.TMB.views.admin.render(), "#view-admin");
-    } else if (role === "coach") {
-      showView("coach");
-      await safeRender("coach", () => window.TMB.views.coach.render(), "#view-coach");
-    } else {
-      showView("player");
-      await safeRender("player", () => window.TMB.views.player.render(), "#view-player");
-    }
-    if (window.TMB.nav.renderBottomNav) window.TMB.nav.renderBottomNav();
+    const defaultSection = role === "admin" ? "admin" : "training";
+    showView(defaultSection);
+    await safeRender(defaultSection, () => window.TMB.views[defaultSection].render(), "#view-" + defaultSection);
+    if (window.TMB.nav.renderSectionNav) window.TMB.nav.renderSectionNav();
   }
 
   async function init() {
@@ -69,14 +63,6 @@
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async () => {
         await window.TMB.auth.signOut();
-      });
-    }
-
-    const settingsBtn = $("#settingsBtn");
-    if (settingsBtn) {
-      settingsBtn.addEventListener("click", () => {
-        showView("settings");
-        safeRender("settings", () => window.TMB.views.settings.render(), "#view-settings");
       });
     }
 
