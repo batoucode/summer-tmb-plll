@@ -42,6 +42,16 @@
   --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.10);
   --pad: 24px;
 
+  /* Effet "gloss" très léger (reflet du haut vers le bas) sur boutons et
+     cartes — un seul curseur pour tout doser : monte/descend
+     --gloss-opacity (0 = désactivé, ~0.10-0.14 = discret, au-delà ça
+     devient un vrai reflet plastique). Invisible sur les surfaces déjà
+     blanches en thème clair (blanc sur blanc = pas de contraste
+     possible), c'est normal et sans conséquence : il se voit surtout
+     sur les boutons colorés et en thème sombre. */
+  --gloss-opacity: 0.10;
+  --gloss: linear-gradient(180deg, rgba(255, 255, 255, var(--gloss-opacity)) 0%, rgba(255, 255, 255, 0) 55%);
+
   /* Indique au navigateur que la page gère elle-même le thème clair :
      sans ça, certains mobiles (Chrome Android en tête) continuent
      d'appliquer leur propre fond clair natif sur les champs de saisie
@@ -128,22 +138,22 @@ a { color: var(--tmb-red); }
   cursor: pointer;
   transition: transform 0.08s ease, opacity 0.15s ease;
 }
-.btn-primary { background: var(--tmb-red); color: #fff; }
-.btn-primary:hover { background: var(--tmb-red-dark); }
+.btn-primary { background: var(--gloss), var(--tmb-red); color: #fff; }
+.btn-primary:hover { background: var(--gloss), var(--tmb-red-dark); }
 .btn-primary:active { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.6; cursor: default; }
 :root[data-theme="dark"] .btn-primary:not(:disabled) { box-shadow: 0 6px 20px rgba(200, 16, 46, 0.4); }
 :root[data-theme="dark"] .btn-primary:not(:disabled):hover { box-shadow: 0 8px 26px rgba(200, 16, 46, 0.55); }
-.btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); }
+.btn-secondary { background: var(--gloss), var(--surface); color: var(--text); border: 1.5px solid var(--border); }
 .btn-secondary:hover { border-color: var(--blue); color: var(--blue); }
 .btn-ghost { background: transparent; color: var(--text-dim); border: 1.5px solid var(--border); min-height: 40px; padding: 8px 16px; }
 .btn-ghost:hover { border-color: var(--red); color: var(--red); }
-.btn-danger-ghost { background: var(--red-dim); color: var(--red); min-height: 40px; padding: 8px 16px; }
-.btn-danger-ghost:hover { background: var(--red); color: #fff; }
+.btn-danger-ghost { background: var(--gloss), var(--red-dim); color: var(--red); min-height: 40px; padding: 8px 16px; }
+.btn-danger-ghost:hover { background: var(--gloss), var(--red); color: #fff; }
 .btn-block { width: 100%; }
 .theme-toggle { min-height: 40px; min-width: 40px; padding: 8px; font-size: 1.1rem; line-height: 1; }
-.btn-publish { margin-top: 20px; background: var(--green); }
-.btn-publish:hover { background: #128a3e; }
+.btn-publish { margin-top: 20px; background: var(--gloss), var(--green); }
+.btn-publish:hover { background: var(--gloss), #128a3e; }
 
 /* ---------- Layout ---------- */
 #appRoot { max-width: 980px; margin: 0 auto; padding: 0 var(--pad) 64px; }
@@ -154,7 +164,7 @@ a { color: var(--tmb-red); }
 
 /* ---------- Cards / forms ---------- */
 .card, .info-card, .plan-card, .empty-state, .editor-toolbar {
-  background: var(--surface);
+  background: var(--gloss), var(--surface);
   border-radius: var(--radius);
   padding: var(--pad);
   box-shadow: var(--shadow);
@@ -217,7 +227,7 @@ a { color: var(--tmb-red); }
 .auth-card {
   position: relative; z-index: 1;
   width: 100%; max-width: 440px;
-  background: var(--surface);
+  background: var(--gloss), var(--surface);
   border-radius: var(--radius);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   padding: 40px 34px;
@@ -228,7 +238,7 @@ a { color: var(--tmb-red); }
 .auth-sub { color: var(--text-dim); margin: 12px 0 26px; font-size: 0.92rem; line-height: 1.5; }
 .auth-tabs { display: flex; background: var(--surface-2); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 22px; }
 .auth-tab { flex: 1; border: none; background: transparent; padding: 10px; border-radius: var(--radius); font-weight: 700; color: var(--text-dim); cursor: pointer; min-height: 44px; }
-.auth-tab.active { background: var(--tmb-red); color: #fff; }
+.auth-tab.active { background: var(--gloss), var(--tmb-red); color: #fff; }
 .auth-form { text-align: left; }
 .auth-form .field input:focus { border-color: var(--tmb-red); }
 .auth-wrap .btn-primary { background: var(--tmb-red); }
@@ -245,13 +255,13 @@ a { color: var(--tmb-red); }
 .tabs { display: flex; gap: 10px; flex-wrap: wrap; }
 .tab {
   min-height: 44px; padding: 10px 18px; border-radius: 999px; border: 1.5px solid var(--border);
-  background: var(--surface); color: var(--text-dim); font-weight: 700; cursor: pointer;
+  background: var(--gloss), var(--surface); color: var(--text-dim); font-weight: 700; cursor: pointer;
 }
-.tab.active { background: var(--tmb-red); color: #fff; border-color: var(--tmb-red); }
+.tab.active { background: var(--gloss), var(--tmb-red); color: #fff; border-color: var(--tmb-red); }
 
 /* ---------- Admin: users table ---------- */
 .admin-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-.table-wrap { overflow-x: auto; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
+.table-wrap { overflow-x: auto; background: var(--gloss), var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
 .table-scroll { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); }
@@ -274,10 +284,10 @@ a { color: var(--tmb-red); }
 .editor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px var(--pad); }
 .locked-cat { font-weight: 700; }
 .week-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-.week-tab { min-height: 44px; min-width: 44px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface); font-weight: 800; cursor: pointer; }
-.week-tab.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+.week-tab { min-height: 44px; min-width: 44px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--gloss), var(--surface); font-weight: 800; cursor: pointer; }
+.week-tab.active { background: var(--gloss), var(--orange); color: #fff; border-color: var(--orange); }
 .week-tab.round { border-radius: 50%; width: 48px; height: 48px; min-width: 48px; padding: 0; }
-.week-tab.is-rest { background: var(--surface-2); color: var(--text-faint); }
+.week-tab.is-rest { background: var(--gloss), var(--surface-2); color: var(--text-faint); }
 .week-tab.is-empty { border-style: dashed; color: var(--text-faint); }
 #edDayTabs.week-tabs { gap: 6px; }
 #edDayTabs .week-tab { min-width: 40px; padding: 8px 10px; font-size: 0.85rem; }
@@ -286,7 +296,7 @@ a { color: var(--tmb-red); }
 .checkbox-row input { width: 20px; height: 20px; }
 
 .exo-edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-.exo-edit-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.exo-edit-card { background: var(--gloss), var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
 
 /* ---------- Player: progress ---------- */
 .progress-card {
@@ -316,7 +326,7 @@ a { color: var(--tmb-red); }
 .day-list { display: flex; flex-direction: column; gap: 12px; }
 .day-card {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  background: var(--surface); border: none; border-radius: var(--radius);
+  background: var(--gloss), var(--surface); border: none; border-radius: var(--radius);
   padding: 18px 20px; box-shadow: var(--shadow); cursor: pointer; text-align: left;
   font: inherit; color: var(--text); min-height: 64px; width: 100%;
 }
@@ -336,14 +346,14 @@ a { color: var(--tmb-red); }
 /* ---------- Player: exercise cards ---------- */
 .player-exo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
 .player-exo-card {
-  background: var(--surface);
+  background: var(--gloss), var(--surface);
   border-radius: var(--radius);
   padding: 12px 14px;
   box-shadow: var(--shadow);
   border: 2px solid transparent;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.player-exo-card.is-done { background: var(--green-dim); border-color: var(--green); }
+.player-exo-card.is-done { background: var(--gloss), var(--green-dim); border-color: var(--green); }
 .pe-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pe-name { font-weight: 800; font-size: 1.02rem; }
 .pe-check {
@@ -365,12 +375,16 @@ a { color: var(--tmb-red); }
 .error-card .btn-secondary { margin-top: 16px; }
 
 /* ---------- Toast ---------- */
+/* Fond volontairement fixe (pas var(--text), qui devient quasi blanc en
+   thème sombre — texte blanc sur fond blanc, illisible). Le toast est un
+   pavé flottant ponctuel : pas besoin qu'il s'inverse avec le thème, il
+   doit juste rester lisible dans les deux cas. */
 .toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
-  background: var(--text); color: #fff; padding: 14px 22px; border-radius: 999px;
+  background: var(--gloss), #1f2937; color: #fff; padding: 14px 22px; border-radius: 999px;
   font-weight: 600; box-shadow: var(--shadow-lg); z-index: 50; max-width: 90vw; text-align: center;
 }
-.toast-error { background: var(--red); }
+.toast-error { background: var(--gloss), var(--red); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 640px) {
@@ -417,4 +431,42 @@ a { color: var(--tmb-red); }
   .auth-card { padding: 24px 16px; }
   .auth-logo-img { height: 88px; }
   .auth-card h1 { font-size: 1.3rem; }
+}
+
+/* ---------- Bottom nav (mobile uniquement) ---------- */
+/* Barre flottante en bas d'écran, remplace sur mobile les boutons de la
+   topbar (Paramètres/Thème/Déconnexion) et les onglets internes de
+   l'espace Admin (Utilisateurs/Programme) — voir assets/js/25-bottom-nav.js.
+   Sur desktop ce bloc reste invisible (display:none par défaut,
+   au-dessus de 640px), la topbar/les onglets habituels restent utilisés
+   tels quels. */
+.bottom-nav { display: none; }
+
+@media (max-width: 640px) {
+  .topbar-user #settingsBtn, .topbar-user #themeToggle, .topbar-user #logoutBtn { display: none; }
+  #view-admin .tabs { display: none; }
+  body.has-bottom-nav #appRoot { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+
+  .bottom-nav {
+    display: flex; align-items: stretch; justify-content: space-around; gap: 2px;
+    position: fixed; left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 6px;
+    box-shadow: var(--shadow-lg);
+  }
+  .bottom-nav-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    flex: 1; border: none; background: transparent; color: var(--text-faint);
+    font-size: 0.62rem; font-weight: 700; padding: 8px 4px; border-radius: 999px;
+    min-height: 50px; cursor: pointer;
+  }
+  .bottom-nav-item .bn-icon { font-size: 1.3rem; line-height: 1; }
+  /* Onglet actif : gris en thème clair, rouge TMB en thème sombre (voir
+     demande explicite : "noir et rouge theme dark et blanc et gris pour
+     le light"). */
+  .bottom-nav-item.active { color: var(--text); background: var(--border); }
+  :root[data-theme="dark"] .bottom-nav-item.active { color: #fff; background: var(--tmb-red); }
 }

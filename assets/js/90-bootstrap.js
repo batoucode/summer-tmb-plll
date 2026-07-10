@@ -47,6 +47,7 @@
       showView("player");
       await safeRender("player", () => window.TMB.views.player.render(), "#view-player");
     }
+    if (window.TMB.nav.renderBottomNav) window.TMB.nav.renderBottomNav();
   }
 
   async function init() {

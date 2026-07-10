@@ -15,7 +15,7 @@ bundler, aucun build) déployé tel quel. Toutes les données passent par
 `@supabase/supabase-js` chargé depuis un CDN.
 
 Depuis le 08/07/2026, le code JS n'est plus un seul fichier
-`assets/app.js` mais **15 modules indépendants** sous `assets/js/`,
+`assets/app.js` mais **16 modules indépendants** sous `assets/js/`,
 chargés comme autant de balises `<script>` classiques (pas de modules
 ES — voir §4 pour la justification). L'ancien fichier unique est
 archivé dans `legacy/app.monolithic.js`.
@@ -41,6 +41,7 @@ assets/
     11-data-api.js                   CRUD programme (catégories/profils/plans/jours/exercices/validations)
     12-seed.js                       Import des données par défaut (default_program.json)
     20-nav.js                        Navigation entre vues + topbar (doit rester minimal)
+    25-bottom-nav.js                 Barre de navigation flottante en bas d'écran (mobile)
     30-view-auth.js                  Écran de connexion / inscription
     40-component-program-editor.js   Éditeur de programme partagé (Admin + Coach)
     50-view-admin.js                 Espace Admin (utilisateurs + programmes)
@@ -69,7 +70,7 @@ supabase/
 legacy/
   app.monolithic.js                  Ancienne version pré-découpage (archivée, non chargée)
   data.js, cloud.js                  Version v1 (localStorage, sans compte)
-index.html                          Coquille HTML + liste ordonnée des 15 scripts
+index.html                          Coquille HTML + liste ordonnée des 16 scripts
 README.md                           Présentation générale, grand public
 ```
 
@@ -95,7 +96,7 @@ window.TMB = {
   supabase: { client: null, ready: false },
   auth: {},              // signUp, signIn, signOut, adminCreateAccount, updatePassword
   data: {},               // tout le CRUD + seedDatabase (dont updateProfileFields, checkUsernameAvailable)
-  nav: {},                 // showView, renderTopbar
+  nav: {},                 // showView, renderTopbar, renderBottomNav
   components: { programEditor: {} },  // mount() partagé admin/coach
   views: { auth: {}, admin: {}, coach: {}, player: {}, settings: {} },
   bootstrap: {}                          // handleSessionChange, init
@@ -136,7 +137,7 @@ directement ce que l'app faisait déjà avant ce découpage.
 
 ### Le mécanisme
 
-1. **Chargement** : 15 balises `<script>` séparées. Si un fichier a une
+1. **Chargement** : 16 balises `<script>` séparées. Si un fichier a une
    erreur de syntaxe ou lève une exception à son chargement, les
    fichiers suivants se chargent quand même.
 2. **Rendu** : chaque vue top-level (`auth`, `admin`, `coach`, `player`,
@@ -164,6 +165,7 @@ flowchart LR
   sbc --> data[11-data-api]
   data --> seed[12-seed]
   core --> nav[20-nav]
+  nav --> bottomNav[25-bottom-nav]
   auth --> viewAuth[30-view-auth]
   data --> compEditor[40-component-program-editor]
   compEditor --> viewAdmin[50-view-admin]
@@ -172,6 +174,7 @@ flowchart LR
   data --> viewSettings[80-view-settings]
   err --> boot[90-bootstrap]
   nav --> boot
+  bottomNav --> boot
   viewAuth --> boot
   viewAdmin --> boot
   viewCoach --> boot

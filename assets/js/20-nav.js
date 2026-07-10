@@ -15,6 +15,9 @@
       $("#view-" + v).classList.toggle("hidden", v !== name);
     });
     $("#topbar").classList.toggle("hidden", name === "auth");
+    const bottomNav = $("#bottomNav");
+    if (bottomNav) bottomNav.classList.toggle("hidden", name === "auth");
+    document.body.classList.toggle("has-bottom-nav", name !== "auth");
   }
 
   function renderTopbar() {

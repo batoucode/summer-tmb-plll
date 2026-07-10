@@ -10,6 +10,18 @@
 
   let adminTab = "users";
 
+  /* Utilisé par la barre de navigation basse mobile (25-bottom-nav.js)
+     pour changer d'onglet depuis en dehors de ce module — voir aussi
+     l'onglet interne .tabs ci-dessous (desktop), qui reste inchangé. */
+  function setAdminTab(tab) {
+    adminTab = tab;
+    window.TMB.nav.showView("admin");
+    renderAdminView();
+  }
+  function getAdminTab() {
+    return adminTab;
+  }
+
   async function renderAdminView() {
     const root = $("#view-admin");
     root.innerHTML = `
@@ -185,4 +197,6 @@
   }
 
   window.TMB.views.admin.render = renderAdminView;
+  window.TMB.views.admin.setTab = setAdminTab;
+  window.TMB.views.admin.getTab = getAdminTab;
 })();
